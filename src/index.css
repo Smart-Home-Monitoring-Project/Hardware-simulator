@@ -1,0 +1,25 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: radial-gradient(ellipse at 50% 0%, #1e293b 0%, #0f172a 45%, #020617 100%);
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* SVG text via CSS class */
+.floorTag {
+  font-family: 'JetBrains Mono', monospace;
+}
