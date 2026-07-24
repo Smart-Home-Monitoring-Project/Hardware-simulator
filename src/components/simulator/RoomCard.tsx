@@ -2,6 +2,7 @@ import DeviceControlCard from './DeviceControlCard';
 import styles from './HomeSimulator.module.css';
 import { ROOM_BOUNDS } from './houseLayout';
 import { RoomPanel } from './HomeSimulator.styles';
+import { isPowered } from '../../types/simulator';
 import { EffectiveDevice, RoomViewModel } from './useSimulatorState';
 
 export interface RoomCardProps {
@@ -10,11 +11,15 @@ export interface RoomCardProps {
 }
 
 function hasCeilingOn(devices: EffectiveDevice[]): boolean {
-  return devices.some((d) => d.type === 'ceiling_light' && d.effectiveOn);
+  return devices.some(
+    (d) => d.type === 'ceiling_light' && isPowered(d.effectiveState),
+  );
 }
 
 function hasLampOn(devices: EffectiveDevice[]): boolean {
-  return devices.some((d) => d.type === 'table_lamp' && d.effectiveOn);
+  return devices.some(
+    (d) => d.type === 'table_lamp' && isPowered(d.effectiveState),
+  );
 }
 
 /** Room overlay: devices live inside this room's bounds */
@@ -55,8 +60,8 @@ export default function RoomCard({ room, onToggleDevice }: RoomCardProps) {
             id={device.id}
             name={device.name}
             type={device.type}
-            isOn={device.isOn}
-            effectiveOn={device.effectiveOn}
+            state={device.state}
+            effectiveState={device.effectiveState}
             onToggle={onToggleDevice}
             style={{
               left: `${placement.x}%`,

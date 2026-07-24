@@ -9,7 +9,11 @@ import {
   Tv,
   type LucideIcon,
 } from 'lucide-react';
-import { DeviceType } from '../../types/simulator';
+import {
+  DeviceType,
+  OperationalState,
+  isPowered,
+} from '../../types/simulator';
 import styles from './HomeSimulator.module.css';
 import { DevicePin, DevicePinIcon, ToggleButton } from './HomeSimulator.styles';
 
@@ -27,12 +31,16 @@ function resolveIcon(deviceId: string, type: DeviceType): LucideIcon {
   return ICON_MAP[type];
 }
 
+function canToggle(state: OperationalState): boolean {
+  return state === 'ON' || state === 'OFF';
+}
+
 export interface DeviceControlCardProps {
   id: string;
   name: string;
   type: DeviceType;
-  isOn: boolean;
-  effectiveOn: boolean;
+  state: OperationalState;
+  effectiveState: OperationalState;
   onToggle: (deviceId: string) => void;
   style?: CSSProperties;
 }
@@ -41,14 +49,16 @@ export default function DeviceControlCard({
   id,
   name,
   type,
-  isOn,
-  effectiveOn,
+  state,
+  effectiveState,
   onToggle,
   style,
 }: DeviceControlCardProps) {
   const Icon = resolveIcon(id, type);
   const isBreaker = type === 'main_breaker';
-  const lit = effectiveOn;
+  const lit = isPowered(effectiveState);
+  const buttonOn = state === 'ON';
+  const toggleable = canToggle(state);
 
   return (
     <DevicePin $isOn={lit} $isBreaker={isBreaker} style={style}>
@@ -67,16 +77,17 @@ export default function DeviceControlCard({
         />
       </DevicePinIcon>
 
-      <motion.div whileTap={{ scale: 0.88 }}>
+      <motion.div whileTap={toggleable ? { scale: 0.88 } : undefined}>
         <ToggleButton
           type="button"
-          $isOn={isOn}
-          className={isOn ? styles.toggleGlowOn : styles.toggleGlowOff}
-          onClick={() => onToggle(id)}
-          aria-pressed={isOn}
-          aria-label={`${name} ${isOn ? 'on' : 'off'}`}
+          $isOn={buttonOn}
+          disabled={!toggleable}
+          className={buttonOn ? styles.toggleGlowOn : styles.toggleGlowOff}
+          onClick={() => toggleable && onToggle(id)}
+          aria-pressed={buttonOn}
+          aria-label={`${name} ${state}`}
         >
-          {isOn ? 'ON' : 'OFF'}
+          {state}
         </ToggleButton>
       </motion.div>
     </DevicePin>

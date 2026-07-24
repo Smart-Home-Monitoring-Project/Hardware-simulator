@@ -151,8 +151,13 @@ export const ToggleButton = styled.button<{ $isOn: boolean }>`
   border: 1px solid ${({ $isOn }) => ($isOn ? '#facc15' : '#3f3f46')};
   transition: background 0.2s ease, color 0.2s ease, transform 0.12s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     transform: translateY(-1px);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
   }
 
   &:focus-visible {

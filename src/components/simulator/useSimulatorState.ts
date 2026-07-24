@@ -3,17 +3,21 @@ import {
   DeviceState,
   INITIAL_ROOMS,
   MAIN_BREAKER_ID,
+  OperationalState,
   RoomData,
   SystemStatus,
   TOTAL_CONTROLLABLE_DEVICES,
   WIRE_COLORS,
   WireLoadLevel,
   WirePathDefinition,
+  isPowered,
+  toggleOperationalState,
 } from '../../types/simulator';
 import { BREAKER_HUB, DISTRIBUTION_HUB } from './houseLayout';
 
 export interface EffectiveDevice extends DeviceState {
-  effectiveOn: boolean;
+  /** State after main-breaker / fault rules are applied */
+  effectiveState: OperationalState;
   effectiveWatts: number;
 }
 
@@ -33,13 +37,35 @@ function isHighLoadDevice(device: DeviceState): boolean {
   return device.type === 'heavy_appliance' && device.powerDrawWatts >= 1000;
 }
 
+/**
+ * Resolves delivered power state:
+ * - ERROR / DISCONNECTED stay as stored
+ * - Main breaker uses its own state
+ * - Other devices lose power (OFF) when main breaker is not ON
+ */
+function resolveEffectiveState(
+  device: DeviceState,
+  mainBreakerOn: boolean,
+): OperationalState {
+  if (device.state === 'ERROR' || device.state === 'DISCONNECTED') {
+    return device.state;
+  }
+  if (device.type === 'main_breaker') {
+    return device.state;
+  }
+  if (!mainBreakerOn) {
+    return 'OFF';
+  }
+  return device.state;
+}
+
 export function useSimulatorState() {
   const [rooms, setRooms] = useState<RoomData[]>(cloneInitialRooms);
 
   const mainBreakerOn = useMemo(() => {
     const breakerRoom = rooms.find((room) => room.isMainBreakerRoom);
     const breaker = breakerRoom?.devices.find((device) => device.id === MAIN_BREAKER_ID);
-    return breaker?.isOn ?? false;
+    return isPowered(breaker?.state ?? 'OFF');
   }, [rooms]);
 
   const toggleDevice = useCallback((deviceId: string) => {
@@ -47,7 +73,9 @@ export function useSimulatorState() {
       prev.map((room) => ({
         ...room,
         devices: room.devices.map((device) =>
-          device.id === deviceId ? { ...device, isOn: !device.isOn } : device,
+          device.id === deviceId
+            ? { ...device, state: toggleOperationalState(device.state) }
+            : device,
         ),
       })),
     );
@@ -56,13 +84,12 @@ export function useSimulatorState() {
   const roomViewModels: RoomViewModel[] = useMemo(() => {
     return rooms.map((room) => {
       const devices: EffectiveDevice[] = room.devices.map((device) => {
-        const isBreaker = device.type === 'main_breaker';
-        const effectiveOn = isBreaker ? device.isOn : mainBreakerOn && device.isOn;
-        const effectiveWatts = effectiveOn ? device.powerDrawWatts : 0;
+        const effectiveState = resolveEffectiveState(device, mainBreakerOn);
+        const effectiveWatts = isPowered(effectiveState) ? device.powerDrawWatts : 0;
 
         return {
           ...device,
-          effectiveOn,
+          effectiveState,
           effectiveWatts,
         };
       });
@@ -71,7 +98,8 @@ export function useSimulatorState() {
 
       if (mainBreakerOn) {
         const activeDevices = devices.filter(
-          (device) => device.effectiveOn && device.type !== 'main_breaker',
+          (device) =>
+            isPowered(device.effectiveState) && device.type !== 'main_breaker',
         );
 
         if (activeDevices.some(isHighLoadDevice)) {
@@ -105,7 +133,8 @@ export function useSimulatorState() {
         (count, room) =>
           count +
           room.devices.filter(
-            (device) => device.effectiveOn && device.type !== 'main_breaker',
+            (device) =>
+              isPowered(device.effectiveState) && device.type !== 'main_breaker',
           ).length,
         0,
       ),
@@ -116,7 +145,7 @@ export function useSimulatorState() {
     () =>
       roomViewModels.some((room) =>
         room.devices.some(
-          (device) => device.effectiveOn && isHighLoadDevice(device),
+          (device) => isPowered(device.effectiveState) && isHighLoadDevice(device),
         ),
       ),
     [roomViewModels],

@@ -1,4 +1,5 @@
 import styles from './HomeSimulator.module.css';
+import { isPowered } from '../../types/simulator';
 import { EffectiveDevice, RoomViewModel } from './useSimulatorState';
 
 interface HouseBlueprintProps {
@@ -9,17 +10,21 @@ interface HouseBlueprintProps {
 function roomLit(devices: EffectiveDevice[]): boolean {
   return devices.some(
     (d) =>
-      d.effectiveOn &&
+      isPowered(d.effectiveState) &&
       (d.type === 'ceiling_light' || d.type === 'table_lamp'),
   );
 }
 
 function ceilingOn(devices: EffectiveDevice[]): boolean {
-  return devices.some((d) => d.type === 'ceiling_light' && d.effectiveOn);
+  return devices.some(
+    (d) => d.type === 'ceiling_light' && isPowered(d.effectiveState),
+  );
 }
 
 function lampOn(devices: EffectiveDevice[]): boolean {
-  return devices.some((d) => d.type === 'table_lamp' && d.effectiveOn);
+  return devices.some(
+    (d) => d.type === 'table_lamp' && isPowered(d.effectiveState),
+  );
 }
 
 export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintProps) {
