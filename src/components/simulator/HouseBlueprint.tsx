@@ -10,20 +10,20 @@ interface HouseBlueprintProps {
 function roomLit(devices: EffectiveDevice[]): boolean {
   return devices.some(
     (d) =>
-      isPowered(d.effectiveState) &&
+      isPowered(d.effectiveStatus) &&
       (d.type === 'ceiling_light' || d.type === 'table_lamp'),
   );
 }
 
 function ceilingOn(devices: EffectiveDevice[]): boolean {
   return devices.some(
-    (d) => d.type === 'ceiling_light' && isPowered(d.effectiveState),
+    (d) => d.type === 'ceiling_light' && isPowered(d.effectiveStatus),
   );
 }
 
 function lampOn(devices: EffectiveDevice[]): boolean {
   return devices.some(
-    (d) => d.type === 'table_lamp' && isPowered(d.effectiveState),
+    (d) => d.type === 'table_lamp' && isPowered(d.effectiveStatus),
   );
 }
 

@@ -12,13 +12,13 @@ export interface RoomCardProps {
 
 function hasCeilingOn(devices: EffectiveDevice[]): boolean {
   return devices.some(
-    (d) => d.type === 'ceiling_light' && isPowered(d.effectiveState),
+    (d) => d.type === 'ceiling_light' && isPowered(d.effectiveStatus),
   );
 }
 
 function hasLampOn(devices: EffectiveDevice[]): boolean {
   return devices.some(
-    (d) => d.type === 'table_lamp' && isPowered(d.effectiveState),
+    (d) => d.type === 'table_lamp' && isPowered(d.effectiveStatus),
   );
 }
 
@@ -60,8 +60,8 @@ export default function RoomCard({ room, onToggleDevice }: RoomCardProps) {
             id={device.id}
             name={device.name}
             type={device.type}
-            state={device.state}
-            effectiveState={device.effectiveState}
+            status={device.status}
+            effectiveStatus={device.effectiveStatus}
             onToggle={onToggleDevice}
             style={{
               left: `${placement.x}%`,

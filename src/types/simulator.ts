@@ -5,15 +5,18 @@ export type DeviceType =
   | 'main_breaker'
   | 'smart_tv';
 
-/** Assignment-aligned operational states */
-export type OperationalState = 'ON' | 'OFF' | 'ERROR' | 'DISCONNECTED';
+/**
+ * Shared device status — same values as Android app / backend.
+ * Prefer this over a boolean so ERROR and DISCONNECTED are representable.
+ */
+export type DeviceStatus = 'ON' | 'OFF' | 'ERROR' | 'DISCONNECTED';
 
 export interface DeviceState {
   id: string;
   name: string;
   type: DeviceType;
   powerDrawWatts: number;
-  state: OperationalState;
+  status: DeviceStatus;
 }
 
 export interface RoomData {
@@ -44,14 +47,14 @@ export const WIRE_COLORS = {
 } as const;
 
 /** True when the device is actively powered / drawing load */
-export function isPowered(state: OperationalState): boolean {
-  return state === 'ON';
+export function isPowered(status: DeviceStatus): boolean {
+  return status === 'ON';
 }
 
 /** Toggle only between ON ↔ OFF; ERROR / DISCONNECTED stay unchanged */
-export function toggleOperationalState(state: OperationalState): OperationalState {
-  if (state === 'ERROR' || state === 'DISCONNECTED') return state;
-  return state === 'ON' ? 'OFF' : 'ON';
+export function toggleDeviceStatus(status: DeviceStatus): DeviceStatus {
+  if (status === 'ERROR' || status === 'DISCONNECTED') return status;
+  return status === 'ON' ? 'OFF' : 'ON';
 }
 
 export const INITIAL_ROOMS: RoomData[] = [
@@ -65,14 +68,14 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Ceiling Light',
         type: 'ceiling_light',
         powerDrawWatts: 60,
-        state: 'OFF',
+        status: 'OFF',
       },
       {
         id: 'r1-lamp',
         name: 'Table Lamp',
         type: 'table_lamp',
         powerDrawWatts: 45,
-        state: 'OFF',
+        status: 'OFF',
       },
     ],
   },
@@ -86,14 +89,14 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Ceiling Light',
         type: 'ceiling_light',
         powerDrawWatts: 60,
-        state: 'OFF',
+        status: 'OFF',
       },
       {
         id: 'r2-iron',
         name: 'Clothes Iron',
         type: 'heavy_appliance',
         powerDrawWatts: 1500,
-        state: 'OFF',
+        status: 'OFF',
       },
     ],
   },
@@ -107,14 +110,14 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Ceiling Light',
         type: 'ceiling_light',
         powerDrawWatts: 60,
-        state: 'OFF',
+        status: 'OFF',
       },
       {
         id: 'r3-lamp',
         name: 'Accent Table Lamp',
         type: 'table_lamp',
         powerDrawWatts: 40,
-        state: 'OFF',
+        status: 'OFF',
       },
     ],
   },
@@ -129,14 +132,14 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Ceiling Light',
         type: 'ceiling_light',
         powerDrawWatts: 60,
-        state: 'OFF',
+        status: 'OFF',
       },
       {
         id: 'r4-breaker',
         name: 'Main Circuit Breaker',
         type: 'main_breaker',
         powerDrawWatts: 0,
-        state: 'ON',
+        status: 'ON',
       },
     ],
   },
@@ -150,14 +153,14 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Ceiling Light',
         type: 'ceiling_light',
         powerDrawWatts: 60,
-        state: 'OFF',
+        status: 'OFF',
       },
       {
         id: 'r5-stove',
         name: 'Electric Stove',
         type: 'heavy_appliance',
         powerDrawWatts: 2000,
-        state: 'OFF',
+        status: 'OFF',
       },
     ],
   },
@@ -171,21 +174,21 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Ceiling Light',
         type: 'ceiling_light',
         powerDrawWatts: 60,
-        state: 'OFF',
+        status: 'OFF',
       },
       {
         id: 'r6-lamp',
         name: 'Decorative Lamp',
         type: 'table_lamp',
         powerDrawWatts: 50,
-        state: 'OFF',
+        status: 'OFF',
       },
       {
         id: 'r6-tv',
         name: 'Smart TV',
         type: 'smart_tv',
         powerDrawWatts: 120,
-        state: 'OFF',
+        status: 'OFF',
       },
     ],
   },

@@ -10,8 +10,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import {
+  DeviceStatus,
   DeviceType,
-  OperationalState,
   isPowered,
 } from '../../types/simulator';
 import styles from './HomeSimulator.module.css';
@@ -31,16 +31,16 @@ function resolveIcon(deviceId: string, type: DeviceType): LucideIcon {
   return ICON_MAP[type];
 }
 
-function canToggle(state: OperationalState): boolean {
-  return state === 'ON' || state === 'OFF';
+function canToggle(status: DeviceStatus): boolean {
+  return status === 'ON' || status === 'OFF';
 }
 
 export interface DeviceControlCardProps {
   id: string;
   name: string;
   type: DeviceType;
-  state: OperationalState;
-  effectiveState: OperationalState;
+  status: DeviceStatus;
+  effectiveStatus: DeviceStatus;
   onToggle: (deviceId: string) => void;
   style?: CSSProperties;
 }
@@ -49,16 +49,16 @@ export default function DeviceControlCard({
   id,
   name,
   type,
-  state,
-  effectiveState,
+  status,
+  effectiveStatus,
   onToggle,
   style,
 }: DeviceControlCardProps) {
   const Icon = resolveIcon(id, type);
   const isBreaker = type === 'main_breaker';
-  const lit = isPowered(effectiveState);
-  const buttonOn = state === 'ON';
-  const toggleable = canToggle(state);
+  const lit = isPowered(effectiveStatus);
+  const buttonOn = status === 'ON';
+  const toggleable = canToggle(status);
 
   return (
     <DevicePin $isOn={lit} $isBreaker={isBreaker} style={style}>
@@ -85,9 +85,9 @@ export default function DeviceControlCard({
           className={buttonOn ? styles.toggleGlowOn : styles.toggleGlowOff}
           onClick={() => toggleable && onToggle(id)}
           aria-pressed={buttonOn}
-          aria-label={`${name} ${state}`}
+          aria-label={`${name} ${status}`}
         >
-          {state}
+          {status}
         </ToggleButton>
       </motion.div>
     </DevicePin>
