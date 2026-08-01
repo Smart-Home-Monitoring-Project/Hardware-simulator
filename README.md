@@ -33,6 +33,16 @@ src/
     └── useSimulatorState.ts
 ```
 
+## Device status model (shared with Android / backend)
+
+Devices use a string `status`, **not** a boolean `isOn`:
+
+```ts
+status: "ON" | "OFF" | "ERROR" | "DISCONNECTED"
+```
+
+Defined in `src/types/simulator.ts`. Toggle logic lives in `useSimulatorState.ts`.
+
 ## Verification checklist
 
 - **Main breaker OFF (Room 4):** All glows and wires cut; HUD shows `[BLACKOUT / MAIN OFF]`.

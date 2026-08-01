@@ -56,35 +56,36 @@ export default function DeviceControlCard({
 }: DeviceControlCardProps) {
   const Icon = resolveIcon(id, type);
   const isBreaker = type === 'main_breaker';
-  const lit = isPowered(effectiveStatus);
-  const buttonOn = status === 'ON';
+  /** Visual power derived from status — styling only, not the data model */
+  const active = isPowered(effectiveStatus);
+  const buttonActive = status === 'ON';
   const toggleable = canToggle(status);
 
   return (
-    <DevicePin $isOn={lit} $isBreaker={isBreaker} style={style}>
+    <DevicePin $active={active} $isBreaker={isBreaker} style={style}>
       {type === 'table_lamp' && (
         <div
-          className={`${styles.lampAura} ${lit ? styles.lampAuraActive : ''}`}
+          className={`${styles.lampAura} ${active ? styles.lampAuraActive : ''}`}
           aria-hidden
         />
       )}
 
-      <DevicePinIcon $isOn={lit} $isBreaker={isBreaker}>
+      <DevicePinIcon $active={active} $isBreaker={isBreaker}>
         <Icon
           size={24}
           strokeWidth={2.3}
-          className={lit ? styles.deviceIconOn : styles.deviceIconOff}
+          className={active ? styles.deviceIconOn : styles.deviceIconOff}
         />
       </DevicePinIcon>
 
       <motion.div whileTap={toggleable ? { scale: 0.88 } : undefined}>
         <ToggleButton
           type="button"
-          $isOn={buttonOn}
+          $active={buttonActive}
           disabled={!toggleable}
-          className={buttonOn ? styles.toggleGlowOn : styles.toggleGlowOff}
+          className={buttonActive ? styles.toggleGlowOn : styles.toggleGlowOff}
           onClick={() => toggleable && onToggle(id)}
-          aria-pressed={buttonOn}
+          aria-pressed={buttonActive}
           aria-label={`${name} ${status}`}
         >
           {status}

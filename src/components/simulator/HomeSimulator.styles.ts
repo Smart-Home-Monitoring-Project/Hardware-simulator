@@ -92,7 +92,7 @@ export const RoomPanel = styled.div<{ $isBreakerRoom?: boolean }>`
   `}
 `;
 
-export const DevicePin = styled.div<{ $isOn: boolean; $isBreaker?: boolean }>`
+export const DevicePin = styled.div<{ $active: boolean; $isBreaker?: boolean }>`
   position: absolute;
   z-index: 4;
   display: flex;
@@ -104,26 +104,26 @@ export const DevicePin = styled.div<{ $isOn: boolean; $isBreaker?: boolean }>`
 `;
 
 /** Device icon — primary visual inside dark room */
-export const DevicePinIcon = styled.div<{ $isOn: boolean; $isBreaker?: boolean }>`
+export const DevicePinIcon = styled.div<{ $active: boolean; $isBreaker?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: ${({ $isOn }) =>
-    $isOn ? 'rgba(15, 23, 42, 0.75)' : 'rgba(10, 10, 10, 0.85)'};
+  background: ${({ $active }) =>
+    $active ? 'rgba(15, 23, 42, 0.75)' : 'rgba(10, 10, 10, 0.85)'};
   border: 2px solid
-    ${({ $isOn, $isBreaker }) =>
-      $isOn
+    ${({ $active, $isBreaker }) =>
+      $active
         ? $isBreaker
           ? 'rgba(192, 132, 252, 0.95)'
           : 'rgba(253, 224, 71, 0.95)'
         : 'rgba(63, 63, 70, 0.9)'};
-  color: ${({ $isOn, $isBreaker }) =>
-    $isOn ? ($isBreaker ? '#e9d5ff' : '#fde047') : '#52525b'};
-  box-shadow: ${({ $isOn, $isBreaker }) =>
-    $isOn
+  color: ${({ $active, $isBreaker }) =>
+    $active ? ($isBreaker ? '#e9d5ff' : '#fde047') : '#52525b'};
+  box-shadow: ${({ $active, $isBreaker }) =>
+    $active
       ? $isBreaker
         ? '0 0 22px rgba(168, 85, 247, 0.65)'
         : '0 0 28px rgba(253, 224, 71, 0.7), 0 0 12px rgba(251, 146, 60, 0.45)'
@@ -132,7 +132,7 @@ export const DevicePinIcon = styled.div<{ $isOn: boolean; $isBreaker?: boolean }
 `;
 
 /** Tiny ON/OFF button — smaller than device */
-export const ToggleButton = styled.button<{ $isOn: boolean }>`
+export const ToggleButton = styled.button<{ $active: boolean }>`
   appearance: none;
   border: none;
   cursor: pointer;
@@ -146,9 +146,9 @@ export const ToggleButton = styled.button<{ $isOn: boolean }>`
   letter-spacing: 0.03em;
   text-transform: uppercase;
   line-height: 1;
-  color: ${({ $isOn }) => ($isOn ? '#052e16' : '#a1a1aa')};
-  background: ${({ $isOn }) => ($isOn ? '#fde047' : '#27272a')};
-  border: 1px solid ${({ $isOn }) => ($isOn ? '#facc15' : '#3f3f46')};
+  color: ${({ $active }) => ($active ? '#052e16' : '#a1a1aa')};
+  background: ${({ $active }) => ($active ? '#fde047' : '#27272a')};
+  border: 1px solid ${({ $active }) => ($active ? '#facc15' : '#3f3f46')};
   transition: background 0.2s ease, color 0.2s ease, transform 0.12s ease;
 
   &:hover:not(:disabled) {

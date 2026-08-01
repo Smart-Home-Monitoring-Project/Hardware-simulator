@@ -59,6 +59,24 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
           <stop offset="0%" stopColor="#1a1a1a" />
           <stop offset="100%" stopColor="#0a0a0a" />
         </linearGradient>
+        <linearGradient id="roofFace" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#6b7280" />
+          <stop offset="45%" stopColor="#4b5563" />
+          <stop offset="100%" stopColor="#374151" />
+        </linearGradient>
+        <linearGradient id="roofShade" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#1f2937" />
+          <stop offset="100%" stopColor="#374151" />
+        </linearGradient>
+        <linearGradient id="chimneyBrick" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#b45309" />
+          <stop offset="100%" stopColor="#78350f" />
+        </linearGradient>
+        <pattern id="shingles" width="28" height="14" patternUnits="userSpaceOnUse">
+          <rect width="28" height="14" fill="#4b5563" />
+          <path d="M0 7 H28 M14 0 V14" stroke="#374151" strokeWidth="1.2" opacity="0.85" />
+          <path d="M0 13.5 H28" stroke="#1f2937" strokeWidth="1" opacity="0.55" />
+        </pattern>
         <filter id="warmBloom" x="-60%" y="-60%" width="220%" height="220%">
           <feGaussianBlur stdDeviation="14" result="b" />
           <feMerge>
@@ -68,6 +86,9 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         </filter>
         <filter id="softShadow" x="-10%" y="-10%" width="120%" height="140%">
           <feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="#000" floodOpacity="0.35" />
+        </filter>
+        <filter id="roofShadow" x="-5%" y="-5%" width="110%" height="130%">
+          <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000" floodOpacity="0.4" />
         </filter>
       </defs>
 
@@ -82,25 +103,70 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
       {/* House shadow */}
       <ellipse cx="640" cy="708" rx="480" ry="18" fill="#000" opacity="0.25" />
 
+      {/* ═══ REAL PITCHED ROOF ═══ */}
+      <g filter="url(#roofShadow)">
+        {/* Left roof pitch */}
+        <polygon
+          points="24,138 640,28 640,138"
+          fill="url(#roofFace)"
+        />
+        <polygon
+          points="24,138 640,28 640,138"
+          fill="url(#shingles)"
+          opacity="0.55"
+        />
+        {/* Right roof pitch (slightly darker for depth) */}
+        <polygon
+          points="640,28 1256,138 640,138"
+          fill="url(#roofShade)"
+        />
+        <polygon
+          points="640,28 1256,138 640,138"
+          fill="url(#shingles)"
+          opacity="0.4"
+        />
+
+        {/* Ridge cap */}
+        <line
+          x1="640"
+          y1="28"
+          x2="640"
+          y2="138"
+          stroke="#1f2937"
+          strokeWidth="3"
+          opacity="0.35"
+        />
+        <path
+          d="M 628 34 Q 640 18 652 34"
+          fill="none"
+          stroke="#9ca3af"
+          strokeWidth="5"
+          strokeLinecap="round"
+        />
+        <line x1="610" y1="32" x2="670" y2="32" stroke="#d1d5db" strokeWidth="4" strokeLinecap="round" />
+
+        {/* Eave fascia / overhang boards */}
+        <rect x="20" y="132" width="1240" height="10" rx="2" fill="#1f2937" />
+        <rect x="24" y="134" width="1232" height="4" fill="#4b5563" opacity="0.7" />
+
+        {/* Soft shadow under eaves onto house wall */}
+        <rect x="48" y="138" width="1184" height="14" fill="#000" opacity="0.18" />
+
+        {/* Chimney */}
+        <rect x="980" y="42" width="42" height="78" rx="2" fill="url(#chimneyBrick)" />
+        <rect x="974" y="38" width="54" height="12" rx="2" fill="#78350f" />
+        <rect x="988" y="52" width="10" height="8" fill="#92400e" opacity="0.5" />
+        <rect x="1004" y="68" width="10" height="8" fill="#92400e" opacity="0.5" />
+        <rect x="988" y="84" width="10" height="8" fill="#92400e" opacity="0.5" />
+        {/* Chimney smoke hint */}
+        <ellipse cx="1001" cy="28" rx="10" ry="6" fill="#94a3b8" opacity="0.35" />
+        <ellipse cx="1008" cy="18" rx="8" ry="5" fill="#cbd5e1" opacity="0.25" />
+      </g>
+
       {/* ═══ MODULAR WHITE SHELL ═══ */}
       <g filter="url(#softShadow)">
         {/* Main body */}
-        <rect x="48" y="128" width="1184" height="560" rx="6" fill="url(#whiteShell)" />
-
-        {/* Rooftop terrace slab */}
-        <rect x="48" y="88" width="1184" height="48" rx="4" fill="#f5f5f5" />
-        <rect x="48" y="88" width="1184" height="8" fill="#ffffff" />
-
-        {/* Rooftop railing */}
-        <line x1="60" y1="96" x2="1220" y2="96" stroke="#1a1a1a" strokeWidth="3" />
-        {[100, 220, 340, 460, 580, 700, 820, 940, 1060, 1180].map((x) => (
-          <line key={x} x1={x} y1="96" x2={x} y2="118" stroke="#1a1a1a" strokeWidth="2.5" />
-        ))}
-        <line x1="60" y1="118" x2="1220" y2="118" stroke="#1a1a1a" strokeWidth="2" />
-
-        {/* Rooftop chairs hint */}
-        <rect x="980" y="102" width="28" height="18" rx="2" fill="#d4d4d4" opacity="0.8" />
-        <rect x="1020" y="102" width="28" height="18" rx="2" fill="#d4d4d4" opacity="0.8" />
+        <rect x="48" y="138" width="1184" height="550" rx="6" fill="url(#whiteShell)" />
       </g>
 
       {/* Upper balcony rail */}
