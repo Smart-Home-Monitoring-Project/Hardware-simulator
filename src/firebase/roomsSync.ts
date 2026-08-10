@@ -60,7 +60,9 @@ function normalizeDevice(raw: unknown, fallbackId: string): DeviceState | null {
     type !== 'table_lamp' &&
     type !== 'heavy_appliance' &&
     type !== 'main_breaker' &&
-    type !== 'smart_tv'
+    type !== 'smart_tv' &&
+    type !== 'security_camera' &&
+    type !== 'air_conditioner'
   ) {
     return null;
   }
@@ -156,4 +158,32 @@ export function buildSeedRooms(): FirebaseRoomsMap {
   }));
 
   return roomsToFirebaseMap(rooms);
+}
+
+/**
+ * Patches for devices/rooms present in INITIAL_ROOMS but missing from Firebase
+ * (e.g. newly added CCTV cameras after an earlier seed).
+ */
+export function buildMissingDevicePatches(
+  existingRooms: RoomData[],
+): Record<string, unknown> | null {
+  const seed = buildSeedRooms();
+  const patches: Record<string, unknown> = {};
+
+  for (const [roomId, seedRoom] of Object.entries(seed)) {
+    const existing = existingRooms.find((room) => room.id === roomId);
+
+    if (!existing) {
+      patches[`${ROOMS_PATH}/${roomId}`] = seedRoom;
+      continue;
+    }
+
+    for (const [deviceId, device] of Object.entries(seedRoom.devices)) {
+      if (!existing.devices.some((d) => d.id === deviceId)) {
+        patches[`${ROOMS_PATH}/${roomId}/devices/${deviceId}`] = device;
+      }
+    }
+  }
+
+  return Object.keys(patches).length > 0 ? patches : null;
 }

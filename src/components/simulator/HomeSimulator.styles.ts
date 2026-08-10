@@ -66,10 +66,10 @@ export const StatusBadge = styled.div<{ $variant: 'stable' | 'high' | 'blackout'
 
 export const HouseStage = styled.div`
   position: relative;
-  width: 100%;
-  min-width: 1280px;
+  /* Keep 1280×780 so HTML room overlays stay aligned with the SVG house */
+  width: min(100%, calc(82vh * 1280 / 780));
+  min-width: 960px;
   aspect-ratio: 1280 / 780;
-  max-height: 82vh;
   margin: 0 auto;
   border-radius: 18px;
   overflow: hidden;
@@ -84,6 +84,8 @@ export const RoomPanel = styled.div<{ $isBreakerRoom?: boolean }>`
   z-index: 3;
   pointer-events: none;
   border-radius: 2px;
+  /* Keep device graphics inside the glass bay (no spill onto white frame/lawn) */
+  overflow: hidden;
 
   ${({ $isBreakerRoom }) =>
     $isBreakerRoom &&
@@ -101,6 +103,8 @@ export const DevicePin = styled.div<{ $active: boolean; $isBreaker?: boolean }>`
   gap: 0.22rem;
   transform: translate(-50%, -50%);
   pointer-events: auto;
+  /* Anchor for camera REC badge */
+  isolation: isolate;
 `;
 
 /** Device icon — primary visual inside dark room */

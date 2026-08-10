@@ -116,6 +116,24 @@
   opacity: 1;
 }
 
+.roomAcWash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  background: radial-gradient(
+    circle at 32% 40%,
+    rgba(103, 232, 249, 0.28) 0%,
+    rgba(165, 243, 252, 0.12) 32%,
+    transparent 58%
+  );
+}
+
+.roomAcWashActive {
+  opacity: 1;
+}
+
 .lampAura {
   position: absolute;
   top: 0;
@@ -229,6 +247,200 @@
 .deviceIconOff {
   opacity: 0.35;
   filter: grayscale(0.5);
+}
+
+.cctvControlShell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cctvWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  transition: box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.cctvWrapOff {
+  background: rgba(24, 24, 27, 0.92);
+  border: 2px solid #3f3f46;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  filter: grayscale(0.85) brightness(0.75);
+}
+
+.cctvWrapOn {
+  background: rgba(9, 9, 11, 0.95);
+  border: 2px solid rgba(248, 250, 252, 0.65);
+  box-shadow:
+    0 0 0 1px rgba(239, 68, 68, 0.45),
+    0 0 22px rgba(255, 255, 255, 0.35),
+    0 0 28px rgba(239, 68, 68, 0.45);
+  filter: none;
+}
+
+.cctvSvg {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+.cctvBeam {
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  width: 34px;
+  height: 28px;
+  transform: translateY(-50%);
+  border-radius: 40%;
+  background: radial-gradient(
+    ellipse at left,
+    rgba(255, 255, 255, 0.75) 0%,
+    rgba(248, 113, 113, 0.35) 45%,
+    transparent 75%
+  );
+  filter: blur(1px);
+  pointer-events: none;
+  animation: beamPulse 2s ease-in-out infinite;
+}
+
+.cctvLedOn {
+  animation: recBlink 1.1s ease-in-out infinite;
+}
+
+.cameraRecBadge {
+  position: absolute;
+  top: -12px;
+  right: -4px;
+  z-index: 5;
+  padding: 0.12rem 0.3rem;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: #dc2626;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+  animation: recBlink 1.2s ease-in-out infinite;
+}
+
+@keyframes recBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes beamPulse {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.acControlShell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Invisible anchor so AC toggle sits under the in-room SVG unit */
+.acToggleAnchor {
+  display: block;
+  width: 8px;
+  height: 2px;
+}
+
+.sceneAcOn {
+  filter: drop-shadow(0 0 6px rgba(165, 243, 252, 0.55));
+}
+
+.sceneAcOff {
+  filter: grayscale(0.25) brightness(0.95);
+}
+
+.sceneAcWash {
+  pointer-events: none;
+}
+
+.sceneAcMist {
+  pointer-events: none;
+  animation: acMist 2.2s ease-in-out infinite;
+}
+
+.acWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 32px;
+  border-radius: 8px;
+  transition: box-shadow 0.3s ease, filter 0.3s ease;
+}
+
+.acWrapOff {
+  filter: grayscale(0.35) brightness(0.92);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.acWrapOn {
+  filter: none;
+  box-shadow:
+    0 0 0 1px rgba(103, 232, 249, 0.55),
+    0 0 18px rgba(165, 243, 252, 0.45),
+    0 0 10px rgba(255, 255, 255, 0.35);
+}
+
+.acSvg {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+.acCoolMist {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 70%;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at top,
+    rgba(165, 243, 252, 0.65) 0%,
+    rgba(103, 232, 249, 0.2) 45%,
+    transparent 75%
+  );
+  filter: blur(1.5px);
+  pointer-events: none;
+  animation: acMist 2.2s ease-in-out infinite;
+}
+
+.acLedOn {
+  animation: recBlink 1.3s ease-in-out infinite;
+}
+
+@keyframes acMist {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(2px);
+  }
 }
 
 .windowGlowActive {

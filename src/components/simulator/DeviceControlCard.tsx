@@ -17,7 +17,9 @@ import {
 import styles from './HomeSimulator.module.css';
 import { DevicePin, DevicePinIcon, ToggleButton } from './HomeSimulator.styles';
 
-const ICON_MAP: Record<DeviceType, LucideIcon> = {
+type IconDeviceType = Exclude<DeviceType, 'security_camera' | 'air_conditioner'>;
+
+const ICON_MAP: Record<IconDeviceType, LucideIcon> = {
   ceiling_light: Lightbulb,
   table_lamp: Lamp,
   heavy_appliance: Flame,
@@ -25,7 +27,7 @@ const ICON_MAP: Record<DeviceType, LucideIcon> = {
   smart_tv: Tv,
 };
 
-function resolveIcon(deviceId: string, type: DeviceType): LucideIcon {
+function resolveIcon(deviceId: string, type: IconDeviceType): LucideIcon {
   if (deviceId === 'r2-iron') return Shirt;
   if (deviceId === 'r5-stove') return Flame;
   return ICON_MAP[type];
@@ -54,9 +56,9 @@ export default function DeviceControlCard({
   onToggle,
   style,
 }: DeviceControlCardProps) {
-  const Icon = resolveIcon(id, type);
   const isBreaker = type === 'main_breaker';
-  /** Visual power derived from status — styling only, not the data model */
+  const isCamera = type === 'security_camera';
+  const isAc = type === 'air_conditioner';
   const active = isPowered(effectiveStatus);
   const buttonActive = status === 'ON';
   const toggleable = canToggle(status);
@@ -70,13 +72,23 @@ export default function DeviceControlCard({
         />
       )}
 
-      <DevicePinIcon $active={active} $isBreaker={isBreaker}>
-        <Icon
-          size={24}
-          strokeWidth={2.3}
-          className={active ? styles.deviceIconOn : styles.deviceIconOff}
-        />
-      </DevicePinIcon>
+      {isCamera || isAc ? (
+        /* Camera/AC machines are drawn in the house SVG; pin is toggle-only */
+        <span className={styles.acToggleAnchor} aria-hidden />
+      ) : (
+        <DevicePinIcon $active={active} $isBreaker={isBreaker}>
+          {(() => {
+            const Icon = resolveIcon(id, type);
+            return (
+              <Icon
+                size={24}
+                strokeWidth={2.3}
+                className={active ? styles.deviceIconOn : styles.deviceIconOff}
+              />
+            );
+          })()}
+        </DevicePinIcon>
+      )}
 
       <motion.div whileTap={toggleable ? { scale: 0.88 } : undefined}>
         <ToggleButton

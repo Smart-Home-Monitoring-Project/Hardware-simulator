@@ -22,6 +22,12 @@ function hasLampOn(devices: EffectiveDevice[]): boolean {
   );
 }
 
+function hasAcOn(devices: EffectiveDevice[]): boolean {
+  return devices.some(
+    (d) => d.type === 'air_conditioner' && isPowered(d.effectiveStatus),
+  );
+}
+
 /** Room overlay: devices live inside this room's bounds */
 export default function RoomCard({ room, onToggleDevice }: RoomCardProps) {
   const bounds = ROOM_BOUNDS.find((b) => b.roomId === room.id);
@@ -30,6 +36,7 @@ export default function RoomCard({ room, onToggleDevice }: RoomCardProps) {
   const deviceById = Object.fromEntries(room.devices.map((d) => [d.id, d]));
   const ceilingOn = hasCeilingOn(room.devices);
   const lampOn = hasLampOn(room.devices);
+  const acOn = hasAcOn(room.devices);
 
   return (
     <RoomPanel
@@ -47,6 +54,10 @@ export default function RoomCard({ room, onToggleDevice }: RoomCardProps) {
       />
       <div
         className={`${styles.roomLampWash} ${lampOn ? styles.roomLampWashActive : ''}`}
+        aria-hidden
+      />
+      <div
+        className={`${styles.roomAcWash} ${acOn ? styles.roomAcWashActive : ''}`}
         aria-hidden
       />
 

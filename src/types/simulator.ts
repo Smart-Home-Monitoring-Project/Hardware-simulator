@@ -3,7 +3,9 @@ export type DeviceType =
   | 'table_lamp'
   | 'heavy_appliance'
   | 'main_breaker'
-  | 'smart_tv';
+  | 'smart_tv'
+  | 'security_camera'
+  | 'air_conditioner';
 
 /**
  * Shared device status — same values as Android app / backend.
@@ -81,6 +83,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         powerDrawWatts: 45,
         status: 'OFF',
       },
+      {
+        id: 'r1-ac',
+        name: 'Master Bedroom AC',
+        type: 'air_conditioner',
+        powerDrawWatts: 1200,
+        status: 'OFF',
+      },
     ],
   },
   {
@@ -102,6 +111,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         powerDrawWatts: 1500,
         status: 'OFF',
       },
+      {
+        id: 'r2-ac',
+        name: 'Utility AC',
+        type: 'air_conditioner',
+        powerDrawWatts: 1000,
+        status: 'OFF',
+      },
     ],
   },
   {
@@ -121,6 +137,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Accent Table Lamp',
         type: 'table_lamp',
         powerDrawWatts: 40,
+        status: 'OFF',
+      },
+      {
+        id: 'r3-ac',
+        name: 'Guest Bedroom AC',
+        type: 'air_conditioner',
+        powerDrawWatts: 1100,
         status: 'OFF',
       },
     ],
@@ -145,6 +168,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         powerDrawWatts: 0,
         status: 'ON',
       },
+      {
+        id: 'r4-ac',
+        name: 'Hall AC',
+        type: 'air_conditioner',
+        powerDrawWatts: 1300,
+        status: 'OFF',
+      },
     ],
   },
   {
@@ -164,6 +194,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Electric Stove',
         type: 'heavy_appliance',
         powerDrawWatts: 2000,
+        status: 'OFF',
+      },
+      {
+        id: 'r5-ac',
+        name: 'Kitchen AC',
+        type: 'air_conditioner',
+        powerDrawWatts: 1400,
         status: 'OFF',
       },
     ],
@@ -192,6 +229,34 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Smart TV',
         type: 'smart_tv',
         powerDrawWatts: 120,
+        status: 'OFF',
+      },
+      {
+        id: 'r6-camera',
+        name: 'Living Room CCTV',
+        type: 'security_camera',
+        powerDrawWatts: 12,
+        status: 'OFF',
+      },
+      {
+        id: 'r6-ac',
+        name: 'Living Room AC',
+        type: 'air_conditioner',
+        powerDrawWatts: 1500,
+        status: 'OFF',
+      },
+    ],
+  },
+  {
+    id: 'room-garden',
+    name: 'Garden / Exterior',
+    floor: 1,
+    devices: [
+      {
+        id: 'garden-camera',
+        name: 'Garden CCTV',
+        type: 'security_camera',
+        powerDrawWatts: 15,
         status: 'OFF',
       },
     ],

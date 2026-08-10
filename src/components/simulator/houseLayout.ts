@@ -27,6 +27,10 @@ export const DISTRIBUTION_HUB = { x: 640, y: 390 } as const;
  * Floor 2 (upper glass bays): room-1 | room-2 | room-3
  * Floor 1 (lower glass bays): room-6 | room-4 | room-5
  * Coordinates match HouseBlueprint glass panes (viewBox 1280×780).
+ *
+ * Wall AC + CCTV machines are drawn in the SVG scene.
+ * Pins below are the small ON/OFF toggles only.
+ * Garden has no AC.
  */
 export const ROOM_BOUNDS: RoomBounds[] = [
   {
@@ -37,8 +41,9 @@ export const ROOM_BOUNDS: RoomBounds[] = [
     width: (360 / 1280) * 100,
     height: (210 / 780) * 100,
     devices: [
+      { deviceId: 'r1-ac', x: 30, y: 48 },
       { deviceId: 'r1-ceiling', x: 50, y: 14 },
-      { deviceId: 'r1-lamp', x: 18, y: 62 },
+      { deviceId: 'r1-lamp', x: 18, y: 68 },
     ],
   },
   {
@@ -49,8 +54,9 @@ export const ROOM_BOUNDS: RoomBounds[] = [
     width: (360 / 1280) * 100,
     height: (210 / 780) * 100,
     devices: [
+      { deviceId: 'r2-ac', x: 30, y: 48 },
       { deviceId: 'r2-ceiling', x: 50, y: 14 },
-      { deviceId: 'r2-iron', x: 78, y: 58 },
+      { deviceId: 'r2-iron', x: 78, y: 62 },
     ],
   },
   {
@@ -61,8 +67,9 @@ export const ROOM_BOUNDS: RoomBounds[] = [
     width: (360 / 1280) * 100,
     height: (210 / 780) * 100,
     devices: [
+      { deviceId: 'r3-ac', x: 30, y: 48 },
       { deviceId: 'r3-ceiling', x: 50, y: 14 },
-      { deviceId: 'r3-lamp', x: 82, y: 62 },
+      { deviceId: 'r3-lamp', x: 82, y: 68 },
     ],
   },
   {
@@ -73,10 +80,22 @@ export const ROOM_BOUNDS: RoomBounds[] = [
     width: (360 / 1280) * 100,
     height: (230 / 780) * 100,
     devices: [
+      { deviceId: 'r6-ac', x: 30, y: 46 },
       { deviceId: 'r6-ceiling', x: 50, y: 12 },
-      { deviceId: 'r6-lamp', x: 16, y: 58 },
-      { deviceId: 'r6-tv', x: 82, y: 52 },
+      { deviceId: 'r6-lamp', x: 18, y: 62 },
+      // TV lower-right; camera toggle near scene CCTV (top-right) — no overlap
+      { deviceId: 'r6-tv', x: 78, y: 72 },
+      { deviceId: 'r6-camera', x: 90, y: 14 },
     ],
+  },
+  {
+    // Outdoor garden CCTV — toggle to the right of pole camera (not on top of it)
+    roomId: 'room-garden',
+    left: (100 / 1280) * 100,
+    top: (700 / 780) * 100,
+    width: (160 / 1280) * 100,
+    height: (70 / 780) * 100,
+    devices: [{ deviceId: 'garden-camera', x: 78, y: 42 }],
   },
   {
     // Lower-center hall + main breaker
@@ -86,6 +105,7 @@ export const ROOM_BOUNDS: RoomBounds[] = [
     width: (360 / 1280) * 100,
     height: (230 / 780) * 100,
     devices: [
+      { deviceId: 'r4-ac', x: 30, y: 46 },
       { deviceId: 'r4-ceiling', x: 50, y: 12 },
       { deviceId: 'r4-breaker', x: 80, y: 68 },
     ],
@@ -98,6 +118,7 @@ export const ROOM_BOUNDS: RoomBounds[] = [
     width: (360 / 1280) * 100,
     height: (230 / 780) * 100,
     devices: [
+      { deviceId: 'r5-ac', x: 30, y: 46 },
       { deviceId: 'r5-ceiling', x: 50, y: 12 },
       { deviceId: 'r5-stove', x: 78, y: 62 },
     ],

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { onValue, ref, set, update } from 'firebase/database';
 import { database } from '../../firebase/firebase';
 import {
+  buildMissingDevicePatches,
   buildSeedRooms,
   devicePath,
   roomsFromFirebaseMap,
@@ -107,9 +108,21 @@ export function useSimulatorState() {
           return;
         }
 
-        setRooms(roomsFromFirebaseMap(snapshot.val()));
+        const parsed = roomsFromFirebaseMap(snapshot.val());
+        setRooms(parsed);
         setSyncState('live');
         setSyncError(null);
+
+        // Merge newly added devices (e.g. CCTV) into an already-seeded database
+        const missing = buildMissingDevicePatches(parsed);
+        if (missing) {
+          void update(ref(database), missing).catch((err: unknown) => {
+            const message =
+              err instanceof Error ? err.message : 'Failed to merge new devices';
+            setSyncState('error');
+            setSyncError(message);
+          });
+        }
       },
       (error) => {
         setSyncState('error');

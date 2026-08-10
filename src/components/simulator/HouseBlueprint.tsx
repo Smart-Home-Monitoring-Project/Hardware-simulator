@@ -27,12 +27,27 @@ function lampOn(devices: EffectiveDevice[]): boolean {
   );
 }
 
+function cameraOn(devices: EffectiveDevice[]): boolean {
+  return devices.some(
+    (d) => d.type === 'security_camera' && isPowered(d.effectiveStatus),
+  );
+}
+
+function acOn(devices: EffectiveDevice[]): boolean {
+  return devices.some(
+    (d) => d.type === 'air_conditioner' && isPowered(d.effectiveStatus),
+  );
+}
+
 export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintProps) {
   const map = Object.fromEntries(rooms.map((r) => [r.id, r]));
 
   const lit = (id: string) => mainBreakerOn && roomLit(map[id]?.devices ?? []);
   const ceil = (id: string) => mainBreakerOn && ceilingOn(map[id]?.devices ?? []);
   const lamp = (id: string) => mainBreakerOn && lampOn(map[id]?.devices ?? []);
+  const ac = (id: string) => mainBreakerOn && acOn(map[id]?.devices ?? []);
+  const gardenCamOn = mainBreakerOn && cameraOn(map['room-garden']?.devices ?? []);
+  const livingCamOn = mainBreakerOn && cameraOn(map['room-6']?.devices ?? []);
 
   return (
     <svg
@@ -77,6 +92,11 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
           <path d="M0 7 H28 M14 0 V14" stroke="#374151" strokeWidth="1.2" opacity="0.85" />
           <path d="M0 13.5 H28" stroke="#1f2937" strokeWidth="1" opacity="0.55" />
         </pattern>
+        <linearGradient id="camBeam" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
+          <stop offset="55%" stopColor="rgba(248,113,113,0.22)" />
+          <stop offset="100%" stopColor="rgba(248,113,113,0)" />
+        </linearGradient>
         <filter id="warmBloom" x="-60%" y="-60%" width="220%" height="220%">
           <feGaussianBlur stdDeviation="14" result="b" />
           <feMerge>
@@ -169,17 +189,10 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         <rect x="48" y="138" width="1184" height="550" rx="6" fill="url(#whiteShell)" />
       </g>
 
-      {/* Upper balcony rail */}
-      <line x1="70" y1="378" x2="1210" y2="378" stroke="#1a1a1a" strokeWidth="3" />
-      {[120, 280, 440, 600, 760, 920, 1080].map((x) => (
-        <line key={x} x1={x} y1="378" x2={x} y2="400" stroke="#1a1a1a" strokeWidth="2" />
-      ))}
+      {/* Floor gap between levels — same tone as shell, no bright white bar */}
+      <rect x="48" y="378" width="1184" height="52" fill="#ececec" />
 
-      {/* Floor slab between levels */}
-      <rect x="48" y="400" width="1184" height="22" fill="#f0f0f0" />
-      <rect x="48" y="400" width="1184" height="4" fill="#ffffff" />
-
-      {/* Solid white center wall accents (like reference) */}
+      {/* Solid center wall accents */}
       <rect x="580" y="168" width="120" height="210" fill="#fafafa" />
       {/* Wall sconces on center panel */}
       <Sconce x={610} y={250} on={lit('room-2')} />
@@ -194,6 +207,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         lit={lit('room-1')}
         ceiling={ceil('room-1')}
         lamp={lamp('room-1')}
+        acActive={ac('room-1')}
         furniture="bedroom"
       />
       <GlassRoom
@@ -204,6 +218,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         lit={lit('room-2')}
         ceiling={ceil('room-2')}
         lamp={false}
+        acActive={ac('room-2')}
         furniture="utility"
       />
       <GlassRoom
@@ -214,6 +229,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         lit={lit('room-3')}
         ceiling={ceil('room-3')}
         lamp={lamp('room-3')}
+        acActive={ac('room-3')}
         furniture="bedroom"
       />
 
@@ -225,6 +241,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         lit={lit('room-6')}
         ceiling={ceil('room-6')}
         lamp={lamp('room-6')}
+        acActive={ac('room-6')}
         furniture="living"
       />
       <GlassRoom
@@ -235,6 +252,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         lit={lit('room-4')}
         ceiling={ceil('room-4')}
         lamp={false}
+        acActive={ac('room-4')}
         furniture="hall"
       />
       <GlassRoom
@@ -245,6 +263,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         lit={lit('room-5')}
         ceiling={ceil('room-5')}
         lamp={false}
+        acActive={ac('room-5')}
         furniture="kitchen"
       />
 
@@ -256,7 +275,110 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
       {/* Deck steps */}
       <rect x="560" y="702" width="160" height="12" rx="2" fill="#a07840" />
       <rect x="580" y="714" width="120" height="10" rx="2" fill="#8b6914" />
+
+      {/* Living-room indoor bullet CCTV */}
+      <SceneBulletCamera x={392} y={445} active={livingCamOn} facing="left" />
+
+      {/* Garden CCTV on pole (front lawn) */}
+      <g>
+        <rect x="126" y="695" width="6" height="42" rx="1.5" fill="#27272a" />
+        <rect x="120" y="732" width="18" height="5" rx="1" fill="#18181b" />
+        <SceneBulletCamera x={118} y={682} active={gardenCamOn} facing="right" scale={1.15} />
+        {gardenCamOn && (
+          <text
+            x="158"
+            y="668"
+            fill="#f87171"
+            fontSize="11"
+            fontFamily="JetBrains Mono, monospace"
+            fontWeight="700"
+          >
+            REC
+          </text>
+        )}
+      </g>
     </svg>
+  );
+}
+
+/** Scene-level realistic bullet CCTV drawn in house SVG */
+function SceneBulletCamera({
+  x,
+  y,
+  active,
+  facing,
+  scale = 1,
+}: {
+  x: number;
+  y: number;
+  active: boolean;
+  facing: 'left' | 'right';
+  scale?: number;
+}) {
+  const flip = facing === 'left' ? -1 : 1;
+
+  return (
+    <g transform={`translate(${x}, ${y}) scale(${flip * scale}, ${scale})`}>
+      {/* Cone shine when ON */}
+      {active && (
+        <polygon
+          points="28,0 78,-22 78,22"
+          fill="url(#camBeam)"
+          opacity="0.55"
+        />
+      )}
+
+      {/* Bracket */}
+      <rect x="-10" y="-5" width="12" height="10" rx="2" fill={active ? '#52525b' : '#3f3f46'} />
+      <rect x="-14" y="-10" width="6" height="20" rx="1.5" fill={active ? '#71717a' : '#3f3f46'} />
+
+      {/* Body */}
+      <ellipse
+        cx="14"
+        cy="0"
+        rx="22"
+        ry="12"
+        fill={active ? '#27272a' : '#3f3f46'}
+        stroke={active ? '#a1a1aa' : '#52525b'}
+        strokeWidth="1.8"
+      />
+      <ellipse
+        cx="14"
+        cy="0"
+        rx="16"
+        ry="7"
+        fill="none"
+        stroke={active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)'}
+        strokeWidth="1"
+      />
+
+      {/* Bezel + lens */}
+      <circle
+        cx="32"
+        cy="0"
+        r="10"
+        fill="#09090b"
+        stroke={active ? '#e4e4e7' : '#52525b'}
+        strokeWidth="2"
+      />
+      <circle
+        cx="32"
+        cy="0"
+        r="6.5"
+        fill={active ? '#f8fafc' : '#52525b'}
+        opacity={active ? 1 : 0.7}
+      />
+      {active && (
+        <>
+          <circle cx="32" cy="0" r="11" fill="rgba(255,255,255,0.22)" />
+          <ellipse cx="29.5" cy="-2.5" rx="2" ry="1.3" fill="#ffffff" />
+        </>
+      )}
+
+      {/* Red status LED */}
+      <circle cx="2" cy="-6" r="2.4" fill={active ? '#ef4444' : '#3f3f46'} />
+      {active && <circle cx="2" cy="-6" r="5" fill="rgba(239,68,68,0.4)" />}
+    </g>
   );
 }
 
@@ -284,6 +406,7 @@ function GlassRoom({
   lit,
   ceiling,
   lamp,
+  acActive,
   furniture,
 }: {
   x: number;
@@ -293,6 +416,7 @@ function GlassRoom({
   lit: boolean;
   ceiling: boolean;
   lamp: boolean;
+  acActive: boolean;
   furniture: Furniture;
 }) {
   return (
@@ -309,6 +433,18 @@ function GlassRoom({
           height={h}
           fill="rgba(251, 146, 60, 0.22)"
           className={styles.windowGlowActive}
+        />
+      )}
+
+      {/* Cool wash when wall AC is on */}
+      {acActive && (
+        <ellipse
+          cx={x + w * 0.28}
+          cy={y + h * 0.42}
+          rx={120}
+          ry={90}
+          fill="rgba(103, 232, 249, 0.22)"
+          className={styles.sceneAcWash}
         />
       )}
 
@@ -338,6 +474,9 @@ function GlassRoom({
 
       {/* Furniture silhouettes */}
       <FurnitureSilhouette x={x} y={y} w={w} h={h} type={furniture} lit={lit} />
+
+      {/* Wall-mounted split AC — pinned inside this room only (never outdoors) */}
+      <SceneWallAc x={x + w * 0.14} y={y + h * 0.12} active={acActive} />
 
       {/* Black window mullions — glass facade look */}
       <rect
@@ -374,6 +513,43 @@ function GlassRoom({
         height={h - 12}
         fill="rgba(255,255,255,0.04)"
       />
+    </g>
+  );
+}
+
+/**
+ * Indoor wall-split AC unit (SVG scene).
+ * From the prior 4× size: width ×0.5, height ×0.75 → scale(2, 3) on the base unit.
+ */
+function SceneWallAc({ x, y, active }: { x: number; y: number; active: boolean }) {
+  const body = active ? '#f8fafc' : '#d1d5db';
+  const stroke = active ? '#cbd5e1' : '#9ca3af';
+  const vent = active ? '#67e8f9' : '#6b7280';
+  const led = active ? '#22d3ee' : '#6b7280';
+
+  return (
+    <g
+      transform={`translate(${x}, ${y}) scale(2, 3)`}
+      className={active ? styles.sceneAcOn : styles.sceneAcOff}
+    >
+      {/* Chassis (base 58×22 → ~116×66) */}
+      <rect x={0} y={0} width={58} height={22} rx={4} fill={body} stroke={stroke} strokeWidth={1.2} />
+      <line x1={6} y1={8} x2={52} y2={8} stroke={active ? '#e2e8f0' : '#c4c4c4'} strokeWidth={1} />
+      {[10, 13, 16].map((vy) => (
+        <rect key={vy} x={7} y={vy} width={44} height={1.4} rx={0.7} fill={vent} opacity={active ? 0.95 : 0.5} />
+      ))}
+      <rect x={42} y={3} width={12} height={5} rx={1} fill={active ? '#0f172a' : '#9ca3af'} opacity={0.85} />
+      <circle cx={48} cy={5.5} r={1.5} fill={led} className={active ? styles.acLedOn : undefined} />
+      {active && (
+        <ellipse
+          cx={29}
+          cy={26}
+          rx={22}
+          ry={8}
+          fill="rgba(165, 243, 252, 0.45)"
+          className={styles.sceneAcMist}
+        />
+      )}
     </g>
   );
 }
