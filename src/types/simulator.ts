@@ -17,6 +17,10 @@ export interface DeviceState {
   type: DeviceType;
   powerDrawWatts: number;
   status: DeviceStatus;
+  /** Epoch ms when last turned ON — used by backend safety cutoffs */
+  turnedOnAt?: number | null;
+  /** Max seconds device may stay ON before backend auto-OFF */
+  maxOnDurationSeconds?: number;
 }
 
 export interface RoomData {

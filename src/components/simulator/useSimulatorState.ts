@@ -1,4 +1,12 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { onValue, ref, set, update } from 'firebase/database';
+import { database } from '../../firebase/firebase';
+import {
+  buildSeedRooms,
+  devicePath,
+  roomsFromFirebaseMap,
+  ROOMS_PATH,
+} from '../../firebase/roomsSync';
 import {
   DeviceState,
   DeviceStatus,
@@ -6,7 +14,6 @@ import {
   MAIN_BREAKER_ID,
   RoomData,
   SystemStatus,
-  TOTAL_CONTROLLABLE_DEVICES,
   WIRE_COLORS,
   WireLoadLevel,
   WirePathDefinition,
@@ -26,7 +33,9 @@ export interface RoomViewModel extends RoomData {
   wireLoadLevel: WireLoadLevel;
 }
 
-function cloneInitialRooms(): RoomData[] {
+export type SyncState = 'connecting' | 'live' | 'error';
+
+function cloneFallbackRooms(): RoomData[] {
   return INITIAL_ROOMS.map((room) => ({
     ...room,
     devices: room.devices.map((device) => ({ ...device })),
@@ -59,8 +68,57 @@ function resolveEffectiveStatus(
   return device.status;
 }
 
+function findDeviceLocation(
+  rooms: RoomData[],
+  deviceId: string,
+): { roomId: string; device: DeviceState } | null {
+  for (const room of rooms) {
+    const device = room.devices.find((d) => d.id === deviceId);
+    if (device) return { roomId: room.id, device };
+  }
+  return null;
+}
+
 export function useSimulatorState() {
-  const [rooms, setRooms] = useState<RoomData[]>(cloneInitialRooms);
+  const [rooms, setRooms] = useState<RoomData[]>(cloneFallbackRooms);
+  const [syncState, setSyncState] = useState<SyncState>('connecting');
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Live subscribe to Firebase Realtime Database
+  useEffect(() => {
+    const roomsRef = ref(database, ROOMS_PATH);
+
+    const unsubscribe = onValue(
+      roomsRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          // First run: seed rooms so Android / backend / simulator share one tree
+          void set(roomsRef, buildSeedRooms())
+            .then(() => {
+              setSyncState('live');
+              setSyncError(null);
+            })
+            .catch((err: unknown) => {
+              const message =
+                err instanceof Error ? err.message : 'Failed to seed Firebase rooms';
+              setSyncState('error');
+              setSyncError(message);
+            });
+          return;
+        }
+
+        setRooms(roomsFromFirebaseMap(snapshot.val()));
+        setSyncState('live');
+        setSyncError(null);
+      },
+      (error) => {
+        setSyncState('error');
+        setSyncError(error.message);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   const mainBreakerOn = useMemo(() => {
     const breakerRoom = rooms.find((room) => room.isMainBreakerRoom);
@@ -68,18 +126,55 @@ export function useSimulatorState() {
     return isPowered(breaker?.status ?? 'OFF');
   }, [rooms]);
 
-  const toggleDevice = useCallback((deviceId: string) => {
-    setRooms((prev) =>
-      prev.map((room) => ({
-        ...room,
-        devices: room.devices.map((device) =>
-          device.id === deviceId
-            ? { ...device, status: toggleDeviceStatus(device.status) }
-            : device,
-        ),
-      })),
-    );
-  }, []);
+  /**
+   * Toggle writes to Firebase. Local UI updates via the onValue listener
+   * (and a small optimistic update for snappy feedback).
+   */
+  const toggleDevice = useCallback(
+    (deviceId: string) => {
+      const location = findDeviceLocation(rooms, deviceId);
+      if (!location) return;
+
+      const { roomId, device } = location;
+      if (device.status === 'ERROR' || device.status === 'DISCONNECTED') return;
+
+      const nextStatus = toggleDeviceStatus(device.status);
+      const patch: Record<string, unknown> = { status: nextStatus };
+
+      // Help backend safety workers (iron / stove max duration)
+      if (device.type === 'heavy_appliance') {
+        patch.turnedOnAt = nextStatus === 'ON' ? Date.now() : null;
+      }
+
+      // Optimistic local update
+      setRooms((prev) =>
+        prev.map((room) => ({
+          ...room,
+          devices: room.devices.map((d) =>
+            d.id === deviceId
+              ? {
+                  ...d,
+                  status: nextStatus,
+                  ...(d.type === 'heavy_appliance'
+                    ? { turnedOnAt: nextStatus === 'ON' ? Date.now() : null }
+                    : {}),
+                }
+              : d,
+          ),
+        })),
+      );
+
+      void update(ref(database, devicePath(roomId, deviceId)), patch).catch(
+        (err: unknown) => {
+          const message =
+            err instanceof Error ? err.message : 'Failed to update device status';
+          setSyncState('error');
+          setSyncError(message);
+        },
+      );
+    },
+    [rooms],
+  );
 
   const roomViewModels: RoomViewModel[] = useMemo(() => {
     return rooms.map((room) => {
@@ -122,6 +217,16 @@ export function useSimulatorState() {
       roomViewModels.reduce(
         (sum, room) =>
           sum + room.devices.reduce((roomSum, device) => roomSum + device.effectiveWatts, 0),
+        0,
+      ),
+    [roomViewModels],
+  );
+
+  const totalDevices = useMemo(
+    () =>
+      roomViewModels.reduce(
+        (count, room) =>
+          count + room.devices.filter((device) => device.type !== 'main_breaker').length,
         0,
       ),
     [roomViewModels],
@@ -216,10 +321,12 @@ export function useSimulatorState() {
     toggleDevice,
     totalWattage,
     activeDeviceCount,
-    totalDevices: TOTAL_CONTROLLABLE_DEVICES,
+    totalDevices,
     systemStatus,
     mainBreakerOn,
     wirePaths,
     getWireColor,
+    syncState,
+    syncError,
   };
 }

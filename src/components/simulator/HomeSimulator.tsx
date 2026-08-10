@@ -45,7 +45,16 @@ export default function HomeSimulator() {
     mainBreakerOn,
     wirePaths,
     getWireColor,
+    syncState,
+    syncError,
   } = useSimulatorState();
+
+  const syncLabel =
+    syncState === 'live'
+      ? 'FIREBASE LIVE'
+      : syncState === 'connecting'
+        ? 'CONNECTING…'
+        : 'SYNC ERROR';
 
   return (
     <section className={styles.simulatorRoot}>
@@ -71,6 +80,17 @@ export default function HomeSimulator() {
             >
               [{systemStatus}]
             </StatusBadge>
+            <span
+              className={clsx(
+                styles.syncPill,
+                syncState === 'live' && styles.syncLive,
+                syncState === 'connecting' && styles.syncConnecting,
+                syncState === 'error' && styles.syncError,
+              )}
+              title={syncError ?? undefined}
+            >
+              {syncLabel}
+            </span>
           </HudMetric>
         </HudBar>
 
