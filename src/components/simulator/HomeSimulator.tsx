@@ -38,6 +38,7 @@ export default function HomeSimulator() {
   const {
     roomViewModels,
     toggleDevice,
+    cycleDeviceStatus,
     totalWattage,
     activeDeviceCount,
     totalDevices,
@@ -144,7 +145,12 @@ export default function HomeSimulator() {
           </WiringSvg>
 
           {roomViewModels.map((room) => (
-            <RoomCard key={room.id} room={room} onToggleDevice={toggleDevice} />
+            <RoomCard
+              key={room.id}
+              room={room}
+              onToggleDevice={toggleDevice}
+              onCycleStatus={cycleDeviceStatus}
+            />
           ))}
         </HouseStage>
       </SimulatorShell>

@@ -81,11 +81,10 @@ export const HouseStage = styled.div`
 
 export const RoomPanel = styled.div<{ $isBreakerRoom?: boolean }>`
   position: absolute;
-  z-index: 3;
+  z-index: 5;
   pointer-events: none;
   border-radius: 2px;
-  /* Keep device graphics inside the glass bay (no spill onto white frame/lawn) */
-  overflow: hidden;
+  overflow: visible;
 
   ${({ $isBreakerRoom }) =>
     $isBreakerRoom &&

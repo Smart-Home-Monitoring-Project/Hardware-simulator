@@ -9,6 +9,18 @@ export interface DevicePlacement {
   y: number;
 }
 
+/**
+ * One multi-switch panel in a room.
+ * switchIds must be real devices in that room — panel buttons toggle those devices.
+ */
+export interface SwitchPanelPlacement {
+  panelId: string;
+  label: string;
+  switchIds: string[];
+  x: number;
+  y: number;
+}
+
 export interface RoomBounds {
   roomId: string;
   left: number;
@@ -16,6 +28,7 @@ export interface RoomBounds {
   width: number;
   height: number;
   devices: DevicePlacement[];
+  panels?: SwitchPanelPlacement[];
 }
 
 export const HOUSE_VIEWBOX = { width: 1280, height: 780 } as const;
@@ -71,7 +84,7 @@ export const ROOM_BOUNDS: RoomBounds[] = [
     devices: [
       { deviceId: 'r6-ceiling', x: 50, y: 12 },
       { deviceId: 'r6-lamp', x: 18, y: 62 },
-      { deviceId: 'r6-tv', x: 78, y: 72 },
+      { deviceId: 'r6-tv', x: 82, y: 48 },
     ],
   },
   {
@@ -93,7 +106,18 @@ export const ROOM_BOUNDS: RoomBounds[] = [
     height: (230 / 780) * 100,
     devices: [
       { deviceId: 'r5-ceiling', x: 50, y: 12 },
-      { deviceId: 'r5-stove', x: 78, y: 62 },
+      { deviceId: 'r5-stove', x: 82, y: 58 },
+      { deviceId: 'r5-outlet', x: 18, y: 58 },
+    ],
+    // Single multi-switch unit for this room — each button = one kitchen device
+    panels: [
+      {
+        panelId: 'kitchen-msu',
+        label: 'Kitchen Panel',
+        switchIds: ['r5-ceiling', 'r5-stove', 'r5-outlet'],
+        x: 50,
+        y: 78,
+      },
     ],
   },
   {

@@ -1,15 +1,18 @@
 import { motion } from 'framer-motion';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import {
   Flame,
   Lamp,
   Lightbulb,
+  Plug,
   Power,
   Shirt,
+  ToggleLeft,
   Tv,
   type LucideIcon,
 } from 'lucide-react';
 import {
+  DeviceSchedule,
   DeviceStatus,
   DeviceType,
   isPowered,
@@ -17,7 +20,10 @@ import {
 import styles from './HomeSimulator.module.css';
 import { DevicePin, DevicePinIcon, ToggleButton } from './HomeSimulator.styles';
 
-type IconDeviceType = Exclude<DeviceType, 'security_camera' | 'air_conditioner'>;
+type IconDeviceType = Exclude<
+  DeviceType,
+  'security_camera' | 'air_conditioner' | 'multi_switch'
+>;
 
 const ICON_MAP: Record<IconDeviceType, LucideIcon> = {
   ceiling_light: Lightbulb,
@@ -25,12 +31,14 @@ const ICON_MAP: Record<IconDeviceType, LucideIcon> = {
   heavy_appliance: Flame,
   main_breaker: Power,
   smart_tv: Tv,
+  electrical_outlet: Plug,
 };
 
 function resolveIcon(deviceId: string, type: IconDeviceType): LucideIcon {
   if (deviceId === 'r2-iron') return Shirt;
   if (deviceId === 'r5-stove') return Flame;
-  return ICON_MAP[type];
+  if (type === 'electrical_outlet') return Plug;
+  return ICON_MAP[type] ?? ToggleLeft;
 }
 
 function canToggle(status: DeviceStatus): boolean {
@@ -43,7 +51,9 @@ export interface DeviceControlCardProps {
   type: DeviceType;
   status: DeviceStatus;
   effectiveStatus: DeviceStatus;
+  schedule?: DeviceSchedule;
   onToggle: (deviceId: string) => void;
+  onCycleStatus?: (deviceId: string) => void;
   style?: CSSProperties;
 }
 
@@ -53,7 +63,9 @@ export default function DeviceControlCard({
   type,
   status,
   effectiveStatus,
+  schedule,
   onToggle,
+  onCycleStatus,
   style,
 }: DeviceControlCardProps) {
   const isBreaker = type === 'main_breaker';
@@ -62,6 +74,16 @@ export default function DeviceControlCard({
   const active = isPowered(effectiveStatus);
   const buttonActive = status === 'ON';
   const toggleable = canToggle(status);
+
+  const handleClick = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.altKey && onCycleStatus) {
+      onCycleStatus(id);
+      return;
+    }
+    if (toggleable) onToggle(id);
+  };
 
   return (
     <DevicePin $active={active} $isBreaker={isBreaker} style={style}>
@@ -73,12 +95,11 @@ export default function DeviceControlCard({
       )}
 
       {isCamera || isAc ? (
-        /* Camera/AC machines are drawn in the house SVG; pin is toggle-only */
         <span className={styles.acToggleAnchor} aria-hidden />
-      ) : (
+      ) : type === 'multi_switch' ? null : (
         <DevicePinIcon $active={active} $isBreaker={isBreaker}>
           {(() => {
-            const Icon = resolveIcon(id, type);
+            const Icon = resolveIcon(id, type as IconDeviceType);
             return (
               <Icon
                 size={24}
@@ -90,15 +111,22 @@ export default function DeviceControlCard({
         </DevicePinIcon>
       )}
 
-      <motion.div whileTap={toggleable ? { scale: 0.88 } : undefined}>
+      {schedule?.enabled && (
+        <span className={styles.scheduleBadge} title="Automatic daily schedule">
+          {schedule.onTime}–{schedule.offTime}
+        </span>
+      )}
+
+      <motion.div whileTap={toggleable || onCycleStatus ? { scale: 0.88 } : undefined}>
         <ToggleButton
           type="button"
           $active={buttonActive}
-          disabled={!toggleable}
+          disabled={!toggleable && !onCycleStatus}
           className={buttonActive ? styles.toggleGlowOn : styles.toggleGlowOff}
-          onClick={() => toggleable && onToggle(id)}
+          onClick={handleClick}
           aria-pressed={buttonActive}
           aria-label={`${name} ${status}`}
+          title="Click: ON/OFF · Alt+click: cycle ERROR/DISCONNECTED"
         >
           {status}
         </ToggleButton>

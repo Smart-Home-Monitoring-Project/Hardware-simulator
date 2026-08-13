@@ -355,6 +355,126 @@
   justify-content: center;
 }
 
+/* Multi-switch wall panel (independent Firebase channels) — compact */
+.msuPanel {
+  position: absolute;
+  z-index: 8;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  width: 96px;
+  padding: 0.22rem 0.28rem 0.28rem;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(71, 85, 105, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.msuPanelOn {
+  border-color: rgba(253, 224, 71, 0.55);
+  box-shadow:
+    0 0 10px rgba(253, 224, 71, 0.22),
+    0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.msuTitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.42rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 0.18rem;
+  text-align: center;
+}
+
+.msuRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+}
+
+.msuRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem;
+  pointer-events: auto;
+}
+
+.msuChannel {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: #a1a1aa;
+  white-space: nowrap;
+}
+
+.msuChannelOn {
+  color: #fde047;
+}
+
+.msuBtn {
+  appearance: none;
+  pointer-events: auto;
+  cursor: pointer;
+  min-width: 26px;
+  height: 13px;
+  padding: 0 0.22rem;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.42rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+  border: 1px solid #3f3f46;
+  color: #a1a1aa;
+  background: #27272a;
+}
+
+.msuBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.msuBtnOn {
+  color: #052e16;
+  background: #fde047;
+  border-color: #facc15;
+}
+
+.msuBtnOff {
+  color: #a1a1aa;
+  background: #27272a;
+  border-color: #3f3f46;
+}
+
+.msuBtnError {
+  color: #fff;
+  background: #dc2626;
+  border-color: #ef4444;
+}
+
+.msuBtnDisc {
+  color: #e2e8f0;
+  background: #475569;
+  border-color: #64748b;
+}
+
+.scheduleBadge {
+  margin-top: 0.1rem;
+  padding: 0.08rem 0.22rem;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.4rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #a5f3fc;
+  background: rgba(8, 47, 73, 0.9);
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  white-space: nowrap;
+}
+
 /* Invisible anchor so AC toggle sits under the in-room SVG unit */
 .acToggleAnchor {
   display: block;

@@ -85,6 +85,25 @@ Garden CCTV path:
 houses/house1/floors/floor1/rooms/room-garden/devices/garden-camera
 ```
 
+Additional heterogeneous devices (simulator + Firebase merge):
+
+| Device | Path |
+|--------|------|
+| Kitchen outlet | `.../floor1/rooms/room-5/devices/r5-outlet` (`electrical_outlet`) |
+| Kitchen multi-switch panel | UI panel in Kitchen — buttons control `r5-ceiling`, `r5-stove`, `r5-outlet` |
+
+The multi-switch panel is **one unit in the Kitchen**. Each button toggles the matching room device in Firebase (same paths as the device icons).
+
+**Light schedule (Master Bedroom ceiling `r1-ceiling`):**
+
+```
+schedule: { enabled: true, onTime: "18:00", offTime: "06:00" }
+```
+
+Simulator applies this window automatically (local time). Manual toggles still work; schedule will re-apply on the next check.
+
+**Status demo:** Alt+click any device button to cycle `ON → OFF → ERROR → DISCONNECTED`.
+
 ## Verification checklist
 
 - **Main breaker OFF (Room 4):** All glows and wires cut; HUD shows `[BLACKOUT / MAIN OFF]`.

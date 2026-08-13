@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { onValue, ref, update } from 'firebase/database';
 import { database } from '../../firebase/firebase';
 import {
-  buildMissingGardenCameraPatches,
+  buildMissingHouseDevicePatches,
   devicePath,
   FLOORS_PATH,
   resolveFloorId,
@@ -18,10 +18,27 @@ import {
   WIRE_COLORS,
   WireLoadLevel,
   WirePathDefinition,
+  cycleDemoStatus,
   isPowered,
   toggleDeviceStatus,
 } from '../../types/simulator';
 import { BREAKER_HUB, DISTRIBUTION_HUB } from './houseLayout';
+
+function timeToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map((n) => Number(n));
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
+  return h * 60 + m;
+}
+
+/** True when local time is inside the ON window (supports overnight windows). */
+function isWithinScheduleWindow(onTime: string, offTime: string, now = new Date()): boolean {
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const on = timeToMinutes(onTime);
+  const off = timeToMinutes(offTime);
+  if (on === off) return false;
+  if (on > off) return cur >= on || cur < off;
+  return cur >= on && cur < off;
+}
 
 export interface EffectiveDevice extends DeviceState {
   /** Status after main-breaker / fault rules are applied */
@@ -116,14 +133,14 @@ export function useSimulatorState() {
         setSyncState('live');
         setSyncError(null);
 
-        // Ensure garden CCTV exists under houses/house1/floors (not top-level rooms/)
-        const gardenPatch = buildMissingGardenCameraPatches(parsed);
-        if (gardenPatch) {
-          void update(ref(database), gardenPatch).catch((err: unknown) => {
+        // Merge missing official devices (outlet, multi-switch, garden CCTV, …)
+        const missingPatch = buildMissingHouseDevicePatches(parsed);
+        if (missingPatch) {
+          void update(ref(database), missingPatch).catch((err: unknown) => {
             const message =
               err instanceof Error
                 ? err.message
-                : 'Failed to create garden CCTV in Firebase';
+                : 'Failed to merge missing house devices into Firebase';
             setSyncState('error');
             setSyncError(message);
           });
@@ -144,31 +161,21 @@ export function useSimulatorState() {
     return isPowered(breaker?.status ?? 'OFF');
   }, [rooms]);
 
-  /**
-   * Toggle writes status (+ turnedOnAt) to houses/house1/floors/...
-   * Local UI updates via onValue; optimistic update for snappy feedback.
-   * No simulator-side safety timer — backend owns iron cutoff.
-   */
-  const toggleDevice = useCallback(
-    (deviceId: string) => {
+  const writeDeviceStatus = useCallback(
+    (deviceId: string, nextStatus: DeviceStatus) => {
       const location = findDeviceLocation(rooms, deviceId);
       if (!location) return;
 
-      const { room, device } = location;
-      if (device.status === 'ERROR' || device.status === 'DISCONNECTED') return;
-
-      const nextStatus = toggleDeviceStatus(device.status);
+      const { room } = location;
       const floorId = resolveFloorId(room);
       const path = devicePath(floorId, room.id, deviceId);
       const now = Date.now();
 
-      // Match Android: status + turnedOnAt (null when OFF)
       const patch: Record<string, unknown> = {
         status: nextStatus,
         turnedOnAt: nextStatus === 'ON' ? now : null,
       };
 
-      // Optimistic local update (overwritten by Firebase listener)
       setRooms((prev) =>
         prev.map((r) => ({
           ...r,
@@ -193,6 +200,60 @@ export function useSimulatorState() {
     },
     [rooms],
   );
+
+  /**
+   * Toggle writes status (+ turnedOnAt) to houses/house1/floors/...
+   * No simulator-side iron safety timer — backend owns that.
+   */
+  const toggleDevice = useCallback(
+    (deviceId: string) => {
+      const location = findDeviceLocation(rooms, deviceId);
+      if (!location) return;
+      const { device } = location;
+      if (device.status === 'ERROR' || device.status === 'DISCONNECTED') return;
+      writeDeviceStatus(deviceId, toggleDeviceStatus(device.status));
+    },
+    [rooms, writeDeviceStatus],
+  );
+
+  /** Alt+click demo: ON → OFF → ERROR → DISCONNECTED → ON */
+  const cycleDeviceStatus = useCallback(
+    (deviceId: string) => {
+      const location = findDeviceLocation(rooms, deviceId);
+      if (!location) return;
+      writeDeviceStatus(deviceId, cycleDemoStatus(location.device.status));
+    },
+    [rooms, writeDeviceStatus],
+  );
+
+  // Apply preset light schedules (does not touch iron safety / breaker logic)
+  useEffect(() => {
+    const tick = () => {
+      for (const room of rooms) {
+        for (const device of room.devices) {
+          const schedule = device.schedule;
+          if (!schedule?.enabled) continue;
+          if (device.status === 'ERROR' || device.status === 'DISCONNECTED') continue;
+
+          const wantOn = isWithinScheduleWindow(schedule.onTime, schedule.offTime);
+          const next: DeviceStatus = wantOn ? 'ON' : 'OFF';
+          if (device.status === next) continue;
+
+          const floorId = resolveFloorId(room);
+          const path = devicePath(floorId, room.id, device.id);
+          const now = Date.now();
+          void update(ref(database, path), {
+            status: next,
+            turnedOnAt: next === 'ON' ? now : null,
+          });
+        }
+      }
+    };
+
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, [rooms]);
 
   const roomViewModels: RoomViewModel[] = useMemo(() => {
     return rooms.map((room) => {
@@ -337,6 +398,7 @@ export function useSimulatorState() {
   return {
     roomViewModels,
     toggleDevice,
+    cycleDeviceStatus,
     totalWattage,
     activeDeviceCount,
     totalDevices,

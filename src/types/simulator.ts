@@ -5,13 +5,22 @@ export type DeviceType =
   | 'main_breaker'
   | 'smart_tv'
   | 'security_camera'
-  | 'air_conditioner';
+  | 'air_conditioner'
+  | 'electrical_outlet'
+  | 'multi_switch';
 
 /**
  * Shared device status — same values as Android app / backend.
  * Prefer this over a boolean so ERROR and DISCONNECTED are representable.
  */
 export type DeviceStatus = 'ON' | 'OFF' | 'ERROR' | 'DISCONNECTED';
+
+/** Preset daily ON/OFF window for a light (local time, HH:mm) */
+export interface DeviceSchedule {
+  enabled: boolean;
+  onTime: string;
+  offTime: string;
+}
 
 export interface DeviceState {
   id: string;
@@ -27,6 +36,16 @@ export interface DeviceState {
   maxOnDuration?: number;
   /** Backend iron safety flag */
   safetyCutoff?: boolean;
+  /** Optional automatic daily schedule (e.g. ceiling light) */
+  schedule?: DeviceSchedule;
+}
+
+/** Cycle statuses for assignment demos (Alt+click a device) */
+export function cycleDemoStatus(status: DeviceStatus): DeviceStatus {
+  if (status === 'ON') return 'OFF';
+  if (status === 'OFF') return 'ERROR';
+  if (status === 'ERROR') return 'DISCONNECTED';
+  return 'ON';
 }
 
 export interface RoomData {
@@ -87,6 +106,12 @@ export const INITIAL_ROOMS: RoomData[] = [
         type: 'ceiling_light',
         powerDrawWatts: 60,
         status: 'OFF',
+        // Preset schedule for assignment demo (local time)
+        schedule: {
+          enabled: true,
+          onTime: '18:00',
+          offTime: '06:00',
+        },
       },
       {
         id: 'r1-lamp',
@@ -182,6 +207,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Electric Stove',
         type: 'heavy_appliance',
         powerDrawWatts: 2000,
+        status: 'OFF',
+      },
+      {
+        id: 'r5-outlet',
+        name: 'Kitchen Power Outlet',
+        type: 'electrical_outlet',
+        powerDrawWatts: 0,
         status: 'OFF',
       },
     ],

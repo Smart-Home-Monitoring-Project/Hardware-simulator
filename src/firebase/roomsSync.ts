@@ -61,6 +61,8 @@ const ALLOWED_TYPES: DeviceType[] = [
   'smart_tv',
   'security_camera',
   'air_conditioner',
+  'electrical_outlet',
+  'multi_switch',
 ];
 
 function normalizeDevice(raw: unknown, fallbackId: string): DeviceState | null {
@@ -102,6 +104,22 @@ function normalizeDevice(raw: unknown, fallbackId: string): DeviceState | null {
   }
   if (typeof d.safetyCutoff === 'boolean') {
     device.safetyCutoff = d.safetyCutoff;
+  }
+
+  const scheduleRaw = d.schedule;
+  if (scheduleRaw && typeof scheduleRaw === 'object') {
+    const s = scheduleRaw as Record<string, unknown>;
+    if (
+      typeof s.enabled === 'boolean' &&
+      typeof s.onTime === 'string' &&
+      typeof s.offTime === 'string'
+    ) {
+      device.schedule = {
+        enabled: s.enabled,
+        onTime: s.onTime,
+        offTime: s.offTime,
+      };
+    }
   }
 
   return device;
@@ -183,46 +201,59 @@ export function resolveFloorId(room: RoomData): string {
   return ROOM_FLOOR_IDS[room.id] ?? (room.floor === 2 ? 'floor2' : 'floor1');
 }
 
-/** Official garden CCTV — path agreed for Android/backend to adopt later. */
-export const GARDEN_CAMERA_DEVICE: DeviceState = {
-  id: 'garden-camera',
-  name: 'Garden CCTV',
-  type: 'security_camera',
-  powerDrawWatts: 15,
-  status: 'OFF',
-};
-
 /**
- * If garden CCTV is missing from houses/house1, create only that node
- * under the official floors path (never top-level `rooms/`).
+ * Merge any INITIAL_ROOMS devices missing from houses/house1/floors
+ * (garden CCTV, outlet, multi-switch channels, etc.).
+ * Never writes top-level `rooms/`.
  */
+export function buildMissingHouseDevicePatches(
+  existingRooms: RoomData[],
+): Record<string, unknown> | null {
+  const patches: Record<string, unknown> = {};
+
+  for (const seedRoom of INITIAL_ROOMS) {
+    const floorId =
+      seedRoom.floorId ??
+      ROOM_FLOOR_IDS[seedRoom.id] ??
+      (seedRoom.floor === 2 ? 'floor2' : 'floor1');
+    const roomPath = `${FLOORS_PATH}/${floorId}/rooms/${seedRoom.id}`;
+    const existing = existingRooms.find((room) => room.id === seedRoom.id);
+
+    if (!existing) {
+      const devices: Record<string, DeviceState> = {};
+      for (const device of seedRoom.devices) {
+        devices[device.id] = { ...device };
+      }
+      patches[roomPath] = {
+        id: seedRoom.id,
+        name: seedRoom.name,
+        devices,
+      };
+      continue;
+    }
+
+    for (const device of seedRoom.devices) {
+      if (!existing.devices.some((d) => d.id === device.id)) {
+        patches[devicePath(floorId, seedRoom.id, device.id)] = { ...device };
+        continue;
+      }
+
+      // Preserve adding schedule metadata if seed has it and Firebase lacks it
+      const live = existing.devices.find((d) => d.id === device.id);
+      if (device.schedule && live && !live.schedule) {
+        patches[`${devicePath(floorId, seedRoom.id, device.id)}/schedule`] = {
+          ...device.schedule,
+        };
+      }
+    }
+  }
+
+  return Object.keys(patches).length > 0 ? patches : null;
+}
+
+/** @deprecated use buildMissingHouseDevicePatches */
 export function buildMissingGardenCameraPatches(
   existingRooms: RoomData[],
 ): Record<string, unknown> | null {
-  const garden = existingRooms.find((room) => room.id === 'room-garden');
-  const hasCamera = garden?.devices.some((d) => d.id === 'garden-camera');
-  if (hasCamera) return null;
-
-  const floorId = 'floor1';
-  const roomId = 'room-garden';
-  const deviceId = 'garden-camera';
-  const roomPath = `${FLOORS_PATH}/${floorId}/rooms/${roomId}`;
-
-  // Room missing entirely → write room shell + device
-  if (!garden) {
-    return {
-      [roomPath]: {
-        id: roomId,
-        name: 'Garden / Exterior',
-        devices: {
-          [deviceId]: { ...GARDEN_CAMERA_DEVICE },
-        },
-      },
-    };
-  }
-
-  // Room exists but camera missing
-  return {
-    [`${roomPath}/devices/${deviceId}`]: { ...GARDEN_CAMERA_DEVICE },
-  };
+  return buildMissingHouseDevicePatches(existingRooms);
 }

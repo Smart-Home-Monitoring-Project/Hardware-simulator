@@ -1,4 +1,5 @@
 import DeviceControlCard from './DeviceControlCard';
+import MultiSwitchPanel from './MultiSwitchPanel';
 import styles from './HomeSimulator.module.css';
 import { ROOM_BOUNDS } from './houseLayout';
 import { RoomPanel } from './HomeSimulator.styles';
@@ -8,6 +9,7 @@ import { EffectiveDevice, RoomViewModel } from './useSimulatorState';
 export interface RoomCardProps {
   room: RoomViewModel;
   onToggleDevice: (deviceId: string) => void;
+  onCycleStatus?: (deviceId: string) => void;
 }
 
 function hasCeilingOn(devices: EffectiveDevice[]): boolean {
@@ -29,7 +31,11 @@ function hasAcOn(devices: EffectiveDevice[]): boolean {
 }
 
 /** Room overlay: devices live inside this room's bounds */
-export default function RoomCard({ room, onToggleDevice }: RoomCardProps) {
+export default function RoomCard({
+  room,
+  onToggleDevice,
+  onCycleStatus,
+}: RoomCardProps) {
   const bounds = ROOM_BOUNDS.find((b) => b.roomId === room.id);
   if (!bounds) return null;
 
@@ -64,6 +70,7 @@ export default function RoomCard({ room, onToggleDevice }: RoomCardProps) {
       {bounds.devices.map((placement) => {
         const device = deviceById[placement.deviceId];
         if (!device) return null;
+        if (device.type === 'multi_switch') return null;
 
         return (
           <DeviceControlCard
@@ -73,10 +80,32 @@ export default function RoomCard({ room, onToggleDevice }: RoomCardProps) {
             type={device.type}
             status={device.status}
             effectiveStatus={device.effectiveStatus}
+            schedule={device.schedule}
             onToggle={onToggleDevice}
+            onCycleStatus={onCycleStatus}
             style={{
               left: `${placement.x}%`,
               top: `${placement.y}%`,
+            }}
+          />
+        );
+      })}
+
+      {(bounds.panels ?? []).map((panel) => {
+        const switches = panel.switchIds
+          .map((id) => deviceById[id])
+          .filter((d): d is EffectiveDevice => Boolean(d));
+
+        return (
+          <MultiSwitchPanel
+            key={panel.panelId}
+            label={panel.label}
+            switches={switches}
+            onToggle={onToggleDevice}
+            onCycleStatus={onCycleStatus}
+            style={{
+              left: `${panel.x}%`,
+              top: `${panel.y}%`,
             }}
           />
         );
