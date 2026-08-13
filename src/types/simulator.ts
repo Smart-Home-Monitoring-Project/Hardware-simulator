@@ -215,6 +215,21 @@ export const INITIAL_ROOMS: RoomData[] = [
       },
     ],
   },
+  {
+    id: 'room-garden',
+    name: 'Garden / Exterior',
+    floor: 1,
+    floorId: 'floor1',
+    devices: [
+      {
+        id: 'garden-camera',
+        name: 'Garden CCTV',
+        type: 'security_camera',
+        powerDrawWatts: 15,
+        status: 'OFF',
+      },
+    ],
+  },
 ];
 
 export const TOTAL_CONTROLLABLE_DEVICES = INITIAL_ROOMS.reduce(

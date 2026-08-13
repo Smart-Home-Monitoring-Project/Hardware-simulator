@@ -18,6 +18,7 @@ export const ROOM_FLOOR_IDS: Record<string, 'floor1' | 'floor2'> = {
   'room-4': 'floor1',
   'room-5': 'floor1',
   'room-6': 'floor1',
+  'room-garden': 'floor1',
 };
 
 const ROOM_META = Object.fromEntries(
@@ -180,4 +181,48 @@ export function roomsFromFloorsSnapshot(raw: unknown): RoomData[] {
 export function resolveFloorId(room: RoomData): string {
   if (room.floorId) return room.floorId;
   return ROOM_FLOOR_IDS[room.id] ?? (room.floor === 2 ? 'floor2' : 'floor1');
+}
+
+/** Official garden CCTV — path agreed for Android/backend to adopt later. */
+export const GARDEN_CAMERA_DEVICE: DeviceState = {
+  id: 'garden-camera',
+  name: 'Garden CCTV',
+  type: 'security_camera',
+  powerDrawWatts: 15,
+  status: 'OFF',
+};
+
+/**
+ * If garden CCTV is missing from houses/house1, create only that node
+ * under the official floors path (never top-level `rooms/`).
+ */
+export function buildMissingGardenCameraPatches(
+  existingRooms: RoomData[],
+): Record<string, unknown> | null {
+  const garden = existingRooms.find((room) => room.id === 'room-garden');
+  const hasCamera = garden?.devices.some((d) => d.id === 'garden-camera');
+  if (hasCamera) return null;
+
+  const floorId = 'floor1';
+  const roomId = 'room-garden';
+  const deviceId = 'garden-camera';
+  const roomPath = `${FLOORS_PATH}/${floorId}/rooms/${roomId}`;
+
+  // Room missing entirely → write room shell + device
+  if (!garden) {
+    return {
+      [roomPath]: {
+        id: roomId,
+        name: 'Garden / Exterior',
+        devices: {
+          [deviceId]: { ...GARDEN_CAMERA_DEVICE },
+        },
+      },
+    };
+  }
+
+  // Room exists but camera missing
+  return {
+    [`${roomPath}/devices/${deviceId}`]: { ...GARDEN_CAMERA_DEVICE },
+  };
 }

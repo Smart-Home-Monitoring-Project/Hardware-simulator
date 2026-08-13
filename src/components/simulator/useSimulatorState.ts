@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { onValue, ref, update } from 'firebase/database';
 import { database } from '../../firebase/firebase';
 import {
+  buildMissingGardenCameraPatches,
   devicePath,
   FLOORS_PATH,
   resolveFloorId,
@@ -114,6 +115,19 @@ export function useSimulatorState() {
         setRooms(parsed);
         setSyncState('live');
         setSyncError(null);
+
+        // Ensure garden CCTV exists under houses/house1/floors (not top-level rooms/)
+        const gardenPatch = buildMissingGardenCameraPatches(parsed);
+        if (gardenPatch) {
+          void update(ref(database), gardenPatch).catch((err: unknown) => {
+            const message =
+              err instanceof Error
+                ? err.message
+                : 'Failed to create garden CCTV in Firebase';
+            setSyncState('error');
+            setSyncError(message);
+          });
+        }
       },
       (error) => {
         setSyncState('error');

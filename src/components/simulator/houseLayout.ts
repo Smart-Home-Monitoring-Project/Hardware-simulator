@@ -96,6 +96,15 @@ export const ROOM_BOUNDS: RoomBounds[] = [
       { deviceId: 'r5-stove', x: 78, y: 62 },
     ],
   },
+  {
+    // Outdoor garden CCTV — toggle beside pole camera (lawn)
+    roomId: 'room-garden',
+    left: (100 / 1280) * 100,
+    top: (700 / 780) * 100,
+    width: (160 / 1280) * 100,
+    height: (70 / 780) * 100,
+    devices: [{ deviceId: 'garden-camera', x: 78, y: 42 }],
+  },
 ];
 
 export const ROOM_ZONES = ROOM_BOUNDS;

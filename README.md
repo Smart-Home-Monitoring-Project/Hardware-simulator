@@ -77,6 +77,13 @@ Floor map:
 | floor1  | room-4  | Main Hall / Entry |
 | floor1  | room-5  | Kitchen / Dining  |
 | floor1  | room-6  | Living Room       |
+| floor1  | room-garden | Garden / Exterior (garden-camera) |
+
+Garden CCTV path:
+
+```
+houses/house1/floors/floor1/rooms/room-garden/devices/garden-camera
+```
 
 ## Verification checklist
 
