@@ -39,6 +39,10 @@ function acOn(devices: EffectiveDevice[]): boolean {
   );
 }
 
+function roomHasAc(devices: EffectiveDevice[]): boolean {
+  return devices.some((d) => d.type === 'air_conditioner');
+}
+
 export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintProps) {
   const map = Object.fromEntries(rooms.map((r) => [r.id, r]));
 
@@ -46,8 +50,15 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
   const ceil = (id: string) => mainBreakerOn && ceilingOn(map[id]?.devices ?? []);
   const lamp = (id: string) => mainBreakerOn && lampOn(map[id]?.devices ?? []);
   const ac = (id: string) => mainBreakerOn && acOn(map[id]?.devices ?? []);
+  const hasAc = (id: string) => roomHasAc(map[id]?.devices ?? []);
   const gardenCamOn = mainBreakerOn && cameraOn(map['room-garden']?.devices ?? []);
   const livingCamOn = mainBreakerOn && cameraOn(map['room-6']?.devices ?? []);
+  const showLivingCam = (map['room-6']?.devices ?? []).some(
+    (d) => d.type === 'security_camera',
+  );
+  const showGardenCam = (map['room-garden']?.devices ?? []).some(
+    (d) => d.type === 'security_camera',
+  );
 
   return (
     <svg
@@ -208,6 +219,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         ceiling={ceil('room-1')}
         lamp={lamp('room-1')}
         acActive={ac('room-1')}
+        showAc={hasAc('room-1')}
         furniture="bedroom"
       />
       <GlassRoom
@@ -219,6 +231,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         ceiling={ceil('room-2')}
         lamp={false}
         acActive={ac('room-2')}
+        showAc={hasAc('room-2')}
         furniture="utility"
       />
       <GlassRoom
@@ -230,6 +243,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         ceiling={ceil('room-3')}
         lamp={lamp('room-3')}
         acActive={ac('room-3')}
+        showAc={hasAc('room-3')}
         furniture="bedroom"
       />
 
@@ -242,6 +256,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         ceiling={ceil('room-6')}
         lamp={lamp('room-6')}
         acActive={ac('room-6')}
+        showAc={hasAc('room-6')}
         furniture="living"
       />
       <GlassRoom
@@ -253,6 +268,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         ceiling={ceil('room-4')}
         lamp={false}
         acActive={ac('room-4')}
+        showAc={hasAc('room-4')}
         furniture="hall"
       />
       <GlassRoom
@@ -264,6 +280,7 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
         ceiling={ceil('room-5')}
         lamp={false}
         acActive={ac('room-5')}
+        showAc={hasAc('room-5')}
         furniture="kitchen"
       />
 
@@ -276,27 +293,31 @@ export default function HouseBlueprint({ rooms, mainBreakerOn }: HouseBlueprintP
       <rect x="560" y="702" width="160" height="12" rx="2" fill="#a07840" />
       <rect x="580" y="714" width="120" height="10" rx="2" fill="#8b6914" />
 
-      {/* Living-room indoor bullet CCTV */}
-      <SceneBulletCamera x={392} y={445} active={livingCamOn} facing="left" />
+      {/* Living-room indoor bullet CCTV — only if Firebase has the device */}
+      {showLivingCam && (
+        <SceneBulletCamera x={392} y={445} active={livingCamOn} facing="left" />
+      )}
 
-      {/* Garden CCTV on pole (front lawn) */}
-      <g>
-        <rect x="126" y="695" width="6" height="42" rx="1.5" fill="#27272a" />
-        <rect x="120" y="732" width="18" height="5" rx="1" fill="#18181b" />
-        <SceneBulletCamera x={118} y={682} active={gardenCamOn} facing="right" scale={1.15} />
-        {gardenCamOn && (
-          <text
-            x="158"
-            y="668"
-            fill="#f87171"
-            fontSize="11"
-            fontFamily="JetBrains Mono, monospace"
-            fontWeight="700"
-          >
-            REC
-          </text>
-        )}
-      </g>
+      {/* Garden CCTV on pole — only if Firebase has the device */}
+      {showGardenCam && (
+        <g>
+          <rect x="126" y="695" width="6" height="42" rx="1.5" fill="#27272a" />
+          <rect x="120" y="732" width="18" height="5" rx="1" fill="#18181b" />
+          <SceneBulletCamera x={118} y={682} active={gardenCamOn} facing="right" scale={1.15} />
+          {gardenCamOn && (
+            <text
+              x="158"
+              y="668"
+              fill="#f87171"
+              fontSize="11"
+              fontFamily="JetBrains Mono, monospace"
+              fontWeight="700"
+            >
+              REC
+            </text>
+          )}
+        </g>
+      )}
     </svg>
   );
 }
@@ -407,6 +428,7 @@ function GlassRoom({
   ceiling,
   lamp,
   acActive,
+  showAc,
   furniture,
 }: {
   x: number;
@@ -417,6 +439,7 @@ function GlassRoom({
   ceiling: boolean;
   lamp: boolean;
   acActive: boolean;
+  showAc: boolean;
   furniture: Furniture;
 }) {
   return (
@@ -437,7 +460,7 @@ function GlassRoom({
       )}
 
       {/* Cool wash when wall AC is on */}
-      {acActive && (
+      {showAc && acActive && (
         <ellipse
           cx={x + w * 0.28}
           cy={y + h * 0.42}
@@ -475,8 +498,10 @@ function GlassRoom({
       {/* Furniture silhouettes */}
       <FurnitureSilhouette x={x} y={y} w={w} h={h} type={furniture} lit={lit} />
 
-      {/* Wall-mounted split AC — pinned inside this room only (never outdoors) */}
-      <SceneWallAc x={x + w * 0.14} y={y + h * 0.12} active={acActive} />
+      {/* Wall AC only when that device exists in Firebase */}
+      {showAc && (
+        <SceneWallAc x={x + w * 0.14} y={y + h * 0.12} active={acActive} />
+      )}
 
       {/* Black window mullions — glass facade look */}
       <rect

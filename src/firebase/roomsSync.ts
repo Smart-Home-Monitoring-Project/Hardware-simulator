@@ -1,48 +1,66 @@
-import { DeviceState, DeviceStatus, INITIAL_ROOMS, RoomData } from '../types/simulator';
+import {
+  DeviceState,
+  DeviceStatus,
+  DeviceType,
+  INITIAL_ROOMS,
+  RoomData,
+} from '../types/simulator';
 
-/** Root path shared with Android app + backend */
-export const ROOMS_PATH = 'rooms';
+/** Official house tree used by Android + backend — never use top-level `rooms`. */
+export const HOUSE_ID = 'house1';
+export const FLOORS_PATH = `houses/${HOUSE_ID}/floors`;
 
-export type FirebaseDevicesMap = Record<string, DeviceState>;
+/** Known room → floor mapping (matches App-main / Firebase). */
+export const ROOM_FLOOR_IDS: Record<string, 'floor1' | 'floor2'> = {
+  'room-1': 'floor2',
+  'room-2': 'floor2',
+  'room-3': 'floor2',
+  'room-4': 'floor1',
+  'room-5': 'floor1',
+  'room-6': 'floor1',
+};
 
-export interface FirebaseRoomNode {
-  id: string;
-  name: string;
-  floor: 1 | 2;
-  isMainBreakerRoom?: boolean;
-  devices: FirebaseDevicesMap;
-}
-
-export type FirebaseRoomsMap = Record<string, FirebaseRoomNode>;
-
-export function devicePath(roomId: string, deviceId: string): string {
-  return `${ROOMS_PATH}/${roomId}/devices/${deviceId}`;
-}
-
-/** Convert simulator room arrays into Firebase-friendly object maps */
-export function roomsToFirebaseMap(rooms: RoomData[]): FirebaseRoomsMap {
-  const map: FirebaseRoomsMap = {};
-
-  for (const room of rooms) {
-    const devices: FirebaseDevicesMap = {};
-    for (const device of room.devices) {
-      devices[device.id] = { ...device };
-    }
-    map[room.id] = {
-      id: room.id,
+const ROOM_META = Object.fromEntries(
+  INITIAL_ROOMS.map((room) => [
+    room.id,
+    {
       name: room.name,
       floor: room.floor,
-      ...(room.isMainBreakerRoom ? { isMainBreakerRoom: true } : {}),
-      devices,
-    };
+      floorId: ROOM_FLOOR_IDS[room.id] ?? (room.floor === 2 ? 'floor2' : 'floor1'),
+      isMainBreakerRoom: Boolean(room.isMainBreakerRoom),
+    },
+  ]),
+) as Record<
+  string,
+  {
+    name: string;
+    floor: 1 | 2;
+    floorId: 'floor1' | 'floor2';
+    isMainBreakerRoom: boolean;
   }
+>;
 
-  return map;
+export function devicePath(
+  floorId: string,
+  roomId: string,
+  deviceId: string,
+): string {
+  return `${FLOORS_PATH}/${floorId}/rooms/${roomId}/devices/${deviceId}`;
 }
 
 function isDeviceStatus(value: unknown): value is DeviceStatus {
   return value === 'ON' || value === 'OFF' || value === 'ERROR' || value === 'DISCONNECTED';
 }
+
+const ALLOWED_TYPES: DeviceType[] = [
+  'ceiling_light',
+  'table_lamp',
+  'heavy_appliance',
+  'main_breaker',
+  'smart_tv',
+  'security_camera',
+  'air_conditioner',
+];
 
 function normalizeDevice(raw: unknown, fallbackId: string): DeviceState | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -55,22 +73,14 @@ function normalizeDevice(raw: unknown, fallbackId: string): DeviceState | null {
     typeof d.powerDrawWatts === 'number' ? d.powerDrawWatts : 0;
   const status = isDeviceStatus(d.status) ? d.status : 'OFF';
 
-  if (
-    type !== 'ceiling_light' &&
-    type !== 'table_lamp' &&
-    type !== 'heavy_appliance' &&
-    type !== 'main_breaker' &&
-    type !== 'smart_tv' &&
-    type !== 'security_camera' &&
-    type !== 'air_conditioner'
-  ) {
+  if (typeof type !== 'string' || !ALLOWED_TYPES.includes(type as DeviceType)) {
     return null;
   }
 
   const device: DeviceState = {
     id,
     name,
-    type,
+    type: type as DeviceType,
     powerDrawWatts,
     status,
   };
@@ -78,112 +88,96 @@ function normalizeDevice(raw: unknown, fallbackId: string): DeviceState | null {
   if (typeof d.turnedOnAt === 'number' || d.turnedOnAt === null) {
     device.turnedOnAt = d.turnedOnAt as number | null;
   }
-  if (typeof d.maxOnDurationSeconds === 'number') {
-    device.maxOnDurationSeconds = d.maxOnDurationSeconds;
+  if (typeof d.turnedOffAt === 'number' || d.turnedOffAt === null) {
+    device.turnedOffAt = d.turnedOffAt as number | null;
+  }
+  // Android / backend field name
+  if (typeof d.maxOnDuration === 'number') {
+    device.maxOnDuration = d.maxOnDuration;
+  }
+  // Legacy simulator field — keep if present, do not invent
+  if (typeof d.maxOnDurationSeconds === 'number' && device.maxOnDuration == null) {
+    device.maxOnDuration = d.maxOnDurationSeconds;
+  }
+  if (typeof d.safetyCutoff === 'boolean') {
+    device.safetyCutoff = d.safetyCutoff;
   }
 
   return device;
 }
 
-/** Convert Firebase object maps back into ordered RoomData arrays for the UI */
-export function roomsFromFirebaseMap(raw: unknown): RoomData[] {
-  if (!raw || typeof raw !== 'object') {
-    return INITIAL_ROOMS.map((room) => ({
-      ...room,
-      devices: room.devices.map((device) => ({ ...device })),
-    }));
-  }
-
-  const roomEntries = Object.entries(raw as Record<string, unknown>);
-
-  const rooms: RoomData[] = [];
-
-  for (const [roomKey, roomValue] of roomEntries) {
-    if (!roomValue || typeof roomValue !== 'object') continue;
-    const r = roomValue as Record<string, unknown>;
-
-    const devicesRaw = r.devices;
-    const devices: DeviceState[] = [];
-
-    if (devicesRaw && typeof devicesRaw === 'object') {
-      for (const [deviceKey, deviceValue] of Object.entries(
-        devicesRaw as Record<string, unknown>,
-      )) {
-        const device = normalizeDevice(deviceValue, deviceKey);
-        if (device) devices.push(device);
-      }
-    }
-
-    devices.sort((a, b) => a.id.localeCompare(b.id));
-
-    const floor: 1 | 2 = r.floor === 2 ? 2 : 1;
-
-    rooms.push({
-      id: typeof r.id === 'string' ? r.id : roomKey,
-      name: typeof r.name === 'string' ? r.name : roomKey,
-      floor,
-      isMainBreakerRoom: Boolean(r.isMainBreakerRoom),
-      devices,
-    });
-  }
-
-  // Keep a stable visual order matching INITIAL_ROOMS when possible
-  const order = new Map(INITIAL_ROOMS.map((room, index) => [room.id, index]));
-  rooms.sort((a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99));
-
-  return rooms;
-}
-
-/** Seed payload including iron safety fields for backend shutoff workers */
-export function buildSeedRooms(): FirebaseRoomsMap {
-  const rooms = INITIAL_ROOMS.map((room) => ({
-    ...room,
-    devices: room.devices.map((device) => {
-      if (device.id === 'r2-iron') {
-        return {
-          ...device,
-          maxOnDurationSeconds: 1800,
-          turnedOnAt: null as number | null,
-        };
-      }
-      if (device.id === 'r5-stove') {
-        return {
-          ...device,
-          maxOnDurationSeconds: 3600,
-          turnedOnAt: null as number | null,
-        };
-      }
-      return { ...device };
-    }),
-  }));
-
-  return roomsToFirebaseMap(rooms);
-}
-
 /**
- * Patches for devices/rooms present in INITIAL_ROOMS but missing from Firebase
- * (e.g. newly added CCTV cameras after an earlier seed).
+ * Parse `houses/house1/floors` snapshot into ordered RoomData for the UI.
+ * Firebase is the source of truth for devices and statuses.
  */
-export function buildMissingDevicePatches(
-  existingRooms: RoomData[],
-): Record<string, unknown> | null {
-  const seed = buildSeedRooms();
-  const patches: Record<string, unknown> = {};
+export function roomsFromFloorsSnapshot(raw: unknown): RoomData[] {
+  if (!raw || typeof raw !== 'object') {
+    return [];
+  }
 
-  for (const [roomId, seedRoom] of Object.entries(seed)) {
-    const existing = existingRooms.find((room) => room.id === roomId);
+  const floors = raw as Record<string, unknown>;
+  const roomsById = new Map<string, RoomData>();
 
-    if (!existing) {
-      patches[`${ROOMS_PATH}/${roomId}`] = seedRoom;
-      continue;
-    }
+  for (const [floorKey, floorValue] of Object.entries(floors)) {
+    if (!floorValue || typeof floorValue !== 'object') continue;
+    const floorNode = floorValue as Record<string, unknown>;
+    const roomsRaw = floorNode.rooms;
+    if (!roomsRaw || typeof roomsRaw !== 'object') continue;
 
-    for (const [deviceId, device] of Object.entries(seedRoom.devices)) {
-      if (!existing.devices.some((d) => d.id === deviceId)) {
-        patches[`${ROOMS_PATH}/${roomId}/devices/${deviceId}`] = device;
+    const floorId =
+      floorKey === 'floor2' || floorKey === 'floor1'
+        ? floorKey
+        : (ROOM_FLOOR_IDS[
+            Object.keys(roomsRaw as object)[0] ?? ''
+          ] as 'floor1' | 'floor2' | undefined) ?? 'floor1';
+
+    for (const [roomKey, roomValue] of Object.entries(
+      roomsRaw as Record<string, unknown>,
+    )) {
+      if (!roomValue || typeof roomValue !== 'object') continue;
+      const r = roomValue as Record<string, unknown>;
+      const meta = ROOM_META[roomKey];
+
+      const devices: DeviceState[] = [];
+      const devicesRaw = r.devices;
+      if (devicesRaw && typeof devicesRaw === 'object') {
+        for (const [deviceKey, deviceValue] of Object.entries(
+          devicesRaw as Record<string, unknown>,
+        )) {
+          const device = normalizeDevice(deviceValue, deviceKey);
+          if (device) devices.push(device);
+        }
       }
+      devices.sort((a, b) => a.id.localeCompare(b.id));
+
+      const floorNum: 1 | 2 =
+        meta?.floor ?? (floorId === 'floor2' ? 2 : 1);
+
+      roomsById.set(roomKey, {
+        id: typeof r.id === 'string' ? r.id : roomKey,
+        name:
+          typeof r.name === 'string'
+            ? r.name
+            : (meta?.name ?? roomKey),
+        floor: floorNum,
+        floorId: (meta?.floorId ?? floorId) as 'floor1' | 'floor2',
+        isMainBreakerRoom:
+          meta?.isMainBreakerRoom ??
+          (Boolean(r.isMainBreakerRoom) ||
+            devices.some((d) => d.type === 'main_breaker')),
+        devices,
+      });
     }
   }
 
-  return Object.keys(patches).length > 0 ? patches : null;
+  const order = new Map(INITIAL_ROOMS.map((room, index) => [room.id, index]));
+
+  return Array.from(roomsById.values()).sort(
+    (a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99),
+  );
+}
+
+export function resolveFloorId(room: RoomData): string {
+  if (room.floorId) return room.floorId;
+  return ROOM_FLOOR_IDS[room.id] ?? (room.floor === 2 ? 'floor2' : 'floor1');
 }

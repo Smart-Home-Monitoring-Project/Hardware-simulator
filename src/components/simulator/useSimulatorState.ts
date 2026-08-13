@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { onValue, ref, set, update } from 'firebase/database';
+import { onValue, ref, update } from 'firebase/database';
 import { database } from '../../firebase/firebase';
 import {
-  buildMissingDevicePatches,
-  buildSeedRooms,
   devicePath,
-  roomsFromFirebaseMap,
-  ROOMS_PATH,
+  FLOORS_PATH,
+  resolveFloorId,
+  roomsFromFloorsSnapshot,
 } from '../../firebase/roomsSync';
 import {
   DeviceState,
@@ -36,10 +35,15 @@ export interface RoomViewModel extends RoomData {
 
 export type SyncState = 'connecting' | 'live' | 'error';
 
+/** Empty shell rooms for first paint before Firebase arrives (no fake ON states). */
 function cloneFallbackRooms(): RoomData[] {
   return INITIAL_ROOMS.map((room) => ({
     ...room,
-    devices: room.devices.map((device) => ({ ...device })),
+    devices: room.devices.map((device) => ({
+      ...device,
+      // Keep breaker default ON for UI until Firebase overrides
+      status: device.type === 'main_breaker' ? device.status : 'OFF',
+    })),
   }));
 }
 
@@ -72,10 +76,10 @@ function resolveEffectiveStatus(
 function findDeviceLocation(
   rooms: RoomData[],
   deviceId: string,
-): { roomId: string; device: DeviceState } | null {
+): { room: RoomData; device: DeviceState } | null {
   for (const room of rooms) {
     const device = room.devices.find((d) => d.id === deviceId);
-    if (device) return { roomId: room.id, device };
+    if (device) return { room, device };
   }
   return null;
 }
@@ -85,44 +89,31 @@ export function useSimulatorState() {
   const [syncState, setSyncState] = useState<SyncState>('connecting');
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Live subscribe to Firebase Realtime Database
+  // Live subscribe to official house floors tree (Android + backend)
   useEffect(() => {
-    const roomsRef = ref(database, ROOMS_PATH);
+    const floorsRef = ref(database, FLOORS_PATH);
 
     const unsubscribe = onValue(
-      roomsRef,
+      floorsRef,
       (snapshot) => {
         if (!snapshot.exists()) {
-          // First run: seed rooms so Android / backend / simulator share one tree
-          void set(roomsRef, buildSeedRooms())
-            .then(() => {
-              setSyncState('live');
-              setSyncError(null);
-            })
-            .catch((err: unknown) => {
-              const message =
-                err instanceof Error ? err.message : 'Failed to seed Firebase rooms';
-              setSyncState('error');
-              setSyncError(message);
-            });
+          setSyncState('error');
+          setSyncError(
+            `No data at ${FLOORS_PATH}. Expect houses/house1/floors from Android/backend.`,
+          );
           return;
         }
 
-        const parsed = roomsFromFirebaseMap(snapshot.val());
+        const parsed = roomsFromFloorsSnapshot(snapshot.val());
+        if (parsed.length === 0) {
+          setSyncState('error');
+          setSyncError('Firebase floors snapshot contained no rooms.');
+          return;
+        }
+
         setRooms(parsed);
         setSyncState('live');
         setSyncError(null);
-
-        // Merge newly added devices (e.g. CCTV) into an already-seeded database
-        const missing = buildMissingDevicePatches(parsed);
-        if (missing) {
-          void update(ref(database), missing).catch((err: unknown) => {
-            const message =
-              err instanceof Error ? err.message : 'Failed to merge new devices';
-            setSyncState('error');
-            setSyncError(message);
-          });
-        }
       },
       (error) => {
         setSyncState('error');
@@ -140,51 +131,51 @@ export function useSimulatorState() {
   }, [rooms]);
 
   /**
-   * Toggle writes to Firebase. Local UI updates via the onValue listener
-   * (and a small optimistic update for snappy feedback).
+   * Toggle writes status (+ turnedOnAt) to houses/house1/floors/...
+   * Local UI updates via onValue; optimistic update for snappy feedback.
+   * No simulator-side safety timer — backend owns iron cutoff.
    */
   const toggleDevice = useCallback(
     (deviceId: string) => {
       const location = findDeviceLocation(rooms, deviceId);
       if (!location) return;
 
-      const { roomId, device } = location;
+      const { room, device } = location;
       if (device.status === 'ERROR' || device.status === 'DISCONNECTED') return;
 
       const nextStatus = toggleDeviceStatus(device.status);
-      const patch: Record<string, unknown> = { status: nextStatus };
+      const floorId = resolveFloorId(room);
+      const path = devicePath(floorId, room.id, deviceId);
+      const now = Date.now();
 
-      // Help backend safety workers (iron / stove max duration)
-      if (device.type === 'heavy_appliance') {
-        patch.turnedOnAt = nextStatus === 'ON' ? Date.now() : null;
-      }
+      // Match Android: status + turnedOnAt (null when OFF)
+      const patch: Record<string, unknown> = {
+        status: nextStatus,
+        turnedOnAt: nextStatus === 'ON' ? now : null,
+      };
 
-      // Optimistic local update
+      // Optimistic local update (overwritten by Firebase listener)
       setRooms((prev) =>
-        prev.map((room) => ({
-          ...room,
-          devices: room.devices.map((d) =>
+        prev.map((r) => ({
+          ...r,
+          devices: r.devices.map((d) =>
             d.id === deviceId
               ? {
                   ...d,
                   status: nextStatus,
-                  ...(d.type === 'heavy_appliance'
-                    ? { turnedOnAt: nextStatus === 'ON' ? Date.now() : null }
-                    : {}),
+                  turnedOnAt: nextStatus === 'ON' ? now : null,
                 }
               : d,
           ),
         })),
       );
 
-      void update(ref(database, devicePath(roomId, deviceId)), patch).catch(
-        (err: unknown) => {
-          const message =
-            err instanceof Error ? err.message : 'Failed to update device status';
-          setSyncState('error');
-          setSyncError(message);
-        },
-      );
+      void update(ref(database, path), patch).catch((err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : 'Failed to update device status';
+        setSyncState('error');
+        setSyncError(message);
+      });
     },
     [rooms],
   );

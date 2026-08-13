@@ -45,29 +45,38 @@ Defined in `src/types/simulator.ts`. Toggle logic lives in `useSimulatorState.ts
 
 ## Firebase Realtime Database sync
 
-Teammate setup: `src/firebase/firebase.ts`
+Same project as Android / backend (`smart-home-monitoring-84ea7`).  
+Config: `src/firebase/firebase.ts`
 
-Simulator responsibilities (this app):
-
-1. Listen to `rooms` with `onValue`
-2. Seed `rooms` on first launch if empty
-3. Write device `status` (and `turnedOnAt` for heavy appliances) on toggle
-
-Database shape:
+**Official path (do not use top-level `rooms/`):**
 
 ```
-rooms/
-  room-1/
-    id, name, floor
-    devices/
-      r1-ceiling: { id, name, type, powerDrawWatts, status }
-      ...
-  room-2/
-    devices/
-      r2-iron: { ..., status, maxOnDurationSeconds, turnedOnAt }
+houses/house1/floors/{floorId}/rooms/{roomId}/devices/{deviceId}
 ```
 
-Backend can listen to the same tree for iron auto-OFF, logging, and notifications.
+Example stove:
+
+```
+houses/house1/floors/floor1/rooms/room-5/devices/r5-stove
+```
+
+Simulator responsibilities:
+
+1. Listen to `houses/house1/floors` with `onValue` (Firebase = source of truth)
+2. Never seed or write a separate simulator tree
+3. On toggle, write `status` + `turnedOnAt` to the same device path
+4. Preserve backend fields (`maxOnDuration`, `safetyCutoff`, etc.) — no local safety timer
+
+Floor map:
+
+| Floor   | Room    | Name              |
+|---------|---------|-------------------|
+| floor2  | room-1  | Master Bedroom    |
+| floor2  | room-2  | Utility Room      |
+| floor2  | room-3  | Guest Bedroom     |
+| floor1  | room-4  | Main Hall / Entry |
+| floor1  | room-5  | Kitchen / Dining  |
+| floor1  | room-6  | Living Room       |
 
 ## Verification checklist
 

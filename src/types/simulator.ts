@@ -21,14 +21,20 @@ export interface DeviceState {
   status: DeviceStatus;
   /** Epoch ms when last turned ON — used by backend safety cutoffs */
   turnedOnAt?: number | null;
-  /** Max seconds device may stay ON before backend auto-OFF */
-  maxOnDurationSeconds?: number;
+  /** Epoch ms when last turned OFF — set by backend / Android */
+  turnedOffAt?: number | null;
+  /** Max seconds ON before backend auto-OFF (Android field name) */
+  maxOnDuration?: number;
+  /** Backend iron safety flag */
+  safetyCutoff?: boolean;
 }
 
 export interface RoomData {
   id: string;
   name: string;
   floor: 1 | 2;
+  /** Firebase floor key: floor1 | floor2 */
+  floorId?: 'floor1' | 'floor2';
   devices: DeviceState[];
   isMainBreakerRoom?: boolean;
 }
@@ -63,11 +69,17 @@ export function toggleDeviceStatus(status: DeviceStatus): DeviceStatus {
   return status === 'ON' ? 'OFF' : 'ON';
 }
 
+/**
+ * Room metadata + official Firebase device IDs (houses/house1).
+ * Statuses here are UI fallback only — Firebase is the source of truth.
+ * Extra simulator-only devices (AC/CCTV) are not listed until added to Firebase.
+ */
 export const INITIAL_ROOMS: RoomData[] = [
   {
     id: 'room-1',
     name: 'Master Bedroom',
     floor: 2,
+    floorId: 'floor2',
     devices: [
       {
         id: 'r1-ceiling',
@@ -83,19 +95,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         powerDrawWatts: 45,
         status: 'OFF',
       },
-      {
-        id: 'r1-ac',
-        name: 'Master Bedroom AC',
-        type: 'air_conditioner',
-        powerDrawWatts: 1200,
-        status: 'OFF',
-      },
     ],
   },
   {
     id: 'room-2',
-    name: 'Utility / Laundry',
+    name: 'Utility Room',
     floor: 2,
+    floorId: 'floor2',
     devices: [
       {
         id: 'r2-ceiling',
@@ -111,19 +117,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         powerDrawWatts: 1500,
         status: 'OFF',
       },
-      {
-        id: 'r2-ac',
-        name: 'Utility AC',
-        type: 'air_conditioner',
-        powerDrawWatts: 1000,
-        status: 'OFF',
-      },
     ],
   },
   {
     id: 'room-3',
     name: 'Guest Bedroom',
     floor: 2,
+    floorId: 'floor2',
     devices: [
       {
         id: 'r3-ceiling',
@@ -139,19 +139,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         powerDrawWatts: 40,
         status: 'OFF',
       },
-      {
-        id: 'r3-ac',
-        name: 'Guest Bedroom AC',
-        type: 'air_conditioner',
-        powerDrawWatts: 1100,
-        status: 'OFF',
-      },
     ],
   },
   {
     id: 'room-4',
     name: 'Main Hall / Entry',
     floor: 1,
+    floorId: 'floor1',
     isMainBreakerRoom: true,
     devices: [
       {
@@ -168,19 +162,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         powerDrawWatts: 0,
         status: 'ON',
       },
-      {
-        id: 'r4-ac',
-        name: 'Hall AC',
-        type: 'air_conditioner',
-        powerDrawWatts: 1300,
-        status: 'OFF',
-      },
     ],
   },
   {
     id: 'room-5',
     name: 'Kitchen / Dining',
     floor: 1,
+    floorId: 'floor1',
     devices: [
       {
         id: 'r5-ceiling',
@@ -196,19 +184,13 @@ export const INITIAL_ROOMS: RoomData[] = [
         powerDrawWatts: 2000,
         status: 'OFF',
       },
-      {
-        id: 'r5-ac',
-        name: 'Kitchen AC',
-        type: 'air_conditioner',
-        powerDrawWatts: 1400,
-        status: 'OFF',
-      },
     ],
   },
   {
     id: 'room-6',
     name: 'Living Room',
     floor: 1,
+    floorId: 'floor1',
     devices: [
       {
         id: 'r6-ceiling',
@@ -229,34 +211,6 @@ export const INITIAL_ROOMS: RoomData[] = [
         name: 'Smart TV',
         type: 'smart_tv',
         powerDrawWatts: 120,
-        status: 'OFF',
-      },
-      {
-        id: 'r6-camera',
-        name: 'Living Room CCTV',
-        type: 'security_camera',
-        powerDrawWatts: 12,
-        status: 'OFF',
-      },
-      {
-        id: 'r6-ac',
-        name: 'Living Room AC',
-        type: 'air_conditioner',
-        powerDrawWatts: 1500,
-        status: 'OFF',
-      },
-    ],
-  },
-  {
-    id: 'room-garden',
-    name: 'Garden / Exterior',
-    floor: 1,
-    devices: [
-      {
-        id: 'garden-camera',
-        name: 'Garden CCTV',
-        type: 'security_camera',
-        powerDrawWatts: 15,
         status: 'OFF',
       },
     ],
