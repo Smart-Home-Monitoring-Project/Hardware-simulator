@@ -22,6 +22,24 @@ export interface DeviceSchedule {
   offTime: string;
 }
 
+/** One channel inside a multi_switch unit (independent ON/OFF) */
+export interface SwitchChannel {
+  id: string;
+  name: string;
+  status: DeviceStatus;
+  /** Optional linked room device this channel drives (e.g. r5-ceiling) */
+  controlsDeviceId?: string;
+}
+
+/** Kitchen multi-switch channel → room device mapping */
+export const KITCHEN_MULTISWITCH_LINKS: Record<string, string> = {
+  'switch-1': 'r5-ceiling',
+  'switch-2': 'r5-stove',
+  'switch-3': 'r5-outlet',
+};
+
+export const KITCHEN_MULTISWITCH_ID = 'r5-multiswitch';
+
 export interface DeviceState {
   id: string;
   name: string;
@@ -38,6 +56,16 @@ export interface DeviceState {
   safetyCutoff?: boolean;
   /** Optional automatic daily schedule (e.g. ceiling light) */
   schedule?: DeviceSchedule;
+  /** Nested switches for type multi_switch (single Firebase device entity) */
+  switches?: SwitchChannel[];
+  /** Mock CCTV live stream URI (assignment monitoring view) */
+  streamUri?: string;
+  /** Mock CCTV snapshot image URI */
+  snapshotUri?: string;
+}
+
+export function anySwitchOn(device: DeviceState): boolean {
+  return (device.switches ?? []).some((sw) => sw.status === 'ON');
 }
 
 /** Cycle statuses for assignment demos (Alt+click a device) */
@@ -216,6 +244,33 @@ export const INITIAL_ROOMS: RoomData[] = [
         powerDrawWatts: 0,
         status: 'OFF',
       },
+      {
+        id: 'r5-multiswitch',
+        name: 'Kitchen Multi-Switch',
+        type: 'multi_switch',
+        powerDrawWatts: 8,
+        status: 'OFF',
+        switches: [
+          {
+            id: 'switch-1',
+            name: 'Kitchen Light',
+            status: 'OFF',
+            controlsDeviceId: 'r5-ceiling',
+          },
+          {
+            id: 'switch-2',
+            name: 'Stove',
+            status: 'OFF',
+            controlsDeviceId: 'r5-stove',
+          },
+          {
+            id: 'switch-3',
+            name: 'Outlet',
+            status: 'OFF',
+            controlsDeviceId: 'r5-outlet',
+          },
+        ],
+      },
     ],
   },
   {
@@ -259,6 +314,9 @@ export const INITIAL_ROOMS: RoomData[] = [
         type: 'security_camera',
         powerDrawWatts: 15,
         status: 'OFF',
+        streamUri: 'https://mock.smarthome.local/house1/garden/live.m3u8',
+        snapshotUri:
+          'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=480&h=270&fit=crop',
       },
     ],
   },

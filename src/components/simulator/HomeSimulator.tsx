@@ -39,6 +39,7 @@ export default function HomeSimulator() {
     roomViewModels,
     toggleDevice,
     cycleDeviceStatus,
+    toggleSwitchChannel,
     totalWattage,
     activeDeviceCount,
     totalDevices,
@@ -148,7 +149,9 @@ export default function HomeSimulator() {
             <RoomCard
               key={room.id}
               room={room}
+              mainBreakerOn={mainBreakerOn}
               onToggleDevice={toggleDevice}
+              onToggleSwitch={toggleSwitchChannel}
               onCycleStatus={cycleDeviceStatus}
             />
           ))}

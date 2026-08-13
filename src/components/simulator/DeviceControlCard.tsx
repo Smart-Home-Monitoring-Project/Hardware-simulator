@@ -52,8 +52,11 @@ export interface DeviceControlCardProps {
   status: DeviceStatus;
   effectiveStatus: DeviceStatus;
   schedule?: DeviceSchedule;
+  streamUri?: string;
+  snapshotUri?: string;
   onToggle: (deviceId: string) => void;
   onCycleStatus?: (deviceId: string) => void;
+  onOpenMonitor?: () => void;
   style?: CSSProperties;
 }
 
@@ -66,6 +69,7 @@ export default function DeviceControlCard({
   schedule,
   onToggle,
   onCycleStatus,
+  onOpenMonitor,
   style,
 }: DeviceControlCardProps) {
   const isBreaker = type === 'main_breaker';
@@ -115,6 +119,19 @@ export default function DeviceControlCard({
         <span className={styles.scheduleBadge} title="Automatic daily schedule">
           {schedule.onTime}–{schedule.offTime}
         </span>
+      )}
+
+      {isCamera && onOpenMonitor && (
+        <button
+          type="button"
+          className={styles.cameraViewBtn}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenMonitor();
+          }}
+        >
+          VIEW
+        </button>
       )}
 
       <motion.div whileTap={toggleable || onCycleStatus ? { scale: 0.88 } : undefined}>

@@ -7,6 +7,7 @@ import {
   FLOORS_PATH,
   resolveFloorId,
   roomsFromFloorsSnapshot,
+  switchPath,
 } from '../../firebase/roomsSync';
 import {
   DeviceState,
@@ -18,6 +19,8 @@ import {
   WIRE_COLORS,
   WireLoadLevel,
   WirePathDefinition,
+  KITCHEN_MULTISWITCH_LINKS,
+  anySwitchOn,
   cycleDemoStatus,
   isPowered,
   toggleDeviceStatus,
@@ -171,27 +174,58 @@ export function useSimulatorState() {
       const path = devicePath(floorId, room.id, deviceId);
       const now = Date.now();
 
-      const patch: Record<string, unknown> = {
-        status: nextStatus,
-        turnedOnAt: nextStatus === 'ON' ? now : null,
+      // If this device is driven by a kitchen multi-switch channel, keep channel in sync
+      const msu = room.devices.find((d) => d.id === 'r5-multiswitch');
+      const linkedSwitch = msu?.switches?.find(
+        (sw) =>
+          (sw.controlsDeviceId ?? KITCHEN_MULTISWITCH_LINKS[sw.id]) === deviceId,
+      );
+
+      const updates: Record<string, unknown> = {
+        [`${path}/status`]: nextStatus,
+        [`${path}/turnedOnAt`]: nextStatus === 'ON' ? now : null,
       };
 
       setRooms((prev) =>
         prev.map((r) => ({
           ...r,
-          devices: r.devices.map((d) =>
-            d.id === deviceId
-              ? {
-                  ...d,
-                  status: nextStatus,
-                  turnedOnAt: nextStatus === 'ON' ? now : null,
-                }
-              : d,
-          ),
+          devices: r.devices.map((d) => {
+            if (d.id === deviceId) {
+              return {
+                ...d,
+                status: nextStatus,
+                turnedOnAt: nextStatus === 'ON' ? now : null,
+              };
+            }
+            if (d.id === 'r5-multiswitch' && linkedSwitch && d.switches) {
+              const nextSwitches = d.switches.map((sw) =>
+                sw.id === linkedSwitch.id ? { ...sw, status: nextStatus } : sw,
+              );
+              return {
+                ...d,
+                switches: nextSwitches,
+                status: nextSwitches.some((sw) => sw.status === 'ON') ? 'ON' : 'OFF',
+              };
+            }
+            return d;
+          }),
         })),
       );
 
-      void update(ref(database, path), patch).catch((err: unknown) => {
+      if (linkedSwitch && msu) {
+        updates[`${switchPath(floorId, room.id, msu.id, linkedSwitch.id)}/status`] =
+          nextStatus;
+        updates[`${devicePath(floorId, room.id, msu.id)}/status`] =
+          // approximate unit status after this change
+          nextStatus === 'ON' ||
+          (msu.switches ?? []).some(
+            (sw) => sw.id !== linkedSwitch.id && sw.status === 'ON',
+          )
+            ? 'ON'
+            : 'OFF';
+      }
+
+      void update(ref(database), updates).catch((err: unknown) => {
         const message =
           err instanceof Error ? err.message : 'Failed to update device status';
         setSyncState('error');
@@ -224,6 +258,77 @@ export function useSimulatorState() {
       writeDeviceStatus(deviceId, cycleDemoStatus(location.device.status));
     },
     [rooms, writeDeviceStatus],
+  );
+
+  /**
+   * Toggle one channel inside the Kitchen Multi-Switch entity.
+   * Writes nested switch status, and mirrors to the linked kitchen device
+   * (Light / Stove / Outlet) so icons stay in sync.
+   */
+  const toggleSwitchChannel = useCallback(
+    (deviceId: string, switchId: string) => {
+      const location = findDeviceLocation(rooms, deviceId);
+      if (!location) return;
+      const { room, device } = location;
+      if (device.type !== 'multi_switch' || !device.switches) return;
+      if (device.status === 'ERROR' || device.status === 'DISCONNECTED') return;
+
+      const channel = device.switches.find((sw) => sw.id === switchId);
+      if (!channel) return;
+      if (channel.status !== 'ON' && channel.status !== 'OFF') return;
+
+      const nextSwStatus = toggleDeviceStatus(channel.status);
+      const nextSwitches = device.switches.map((sw) =>
+        sw.id === switchId ? { ...sw, status: nextSwStatus } : sw,
+      );
+      const unitStatus: DeviceStatus = nextSwitches.some((sw) => sw.status === 'ON')
+        ? 'ON'
+        : 'OFF';
+      const floorId = resolveFloorId(room);
+      const now = Date.now();
+      const linkedId =
+        channel.controlsDeviceId ?? KITCHEN_MULTISWITCH_LINKS[switchId];
+
+      setRooms((prev) =>
+        prev.map((r) => ({
+          ...r,
+          devices: r.devices.map((d) => {
+            if (d.id === deviceId) {
+              return { ...d, status: unitStatus, switches: nextSwitches };
+            }
+            if (linkedId && d.id === linkedId) {
+              return {
+                ...d,
+                status: nextSwStatus,
+                turnedOnAt: nextSwStatus === 'ON' ? now : null,
+              };
+            }
+            return d;
+          }),
+        })),
+      );
+
+      const updates: Record<string, unknown> = {
+        [`${switchPath(floorId, room.id, deviceId, switchId)}/status`]: nextSwStatus,
+        [`${devicePath(floorId, room.id, deviceId)}/status`]: unitStatus,
+        [`${devicePath(floorId, room.id, deviceId)}/turnedOnAt`]:
+          unitStatus === 'ON' ? now : null,
+      };
+
+      if (linkedId) {
+        updates[`${devicePath(floorId, room.id, linkedId)}/status`] = nextSwStatus;
+        updates[`${devicePath(floorId, room.id, linkedId)}/turnedOnAt`] =
+          nextSwStatus === 'ON' ? now : null;
+      }
+
+      void update(ref(database), updates).catch((err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : 'Failed to update multi-switch channel';
+        setSyncState('error');
+        setSyncError(message);
+      });
+    },
+    [rooms],
   );
 
   // Apply preset light schedules (does not touch iron safety / breaker logic)
@@ -259,7 +364,11 @@ export function useSimulatorState() {
     return rooms.map((room) => {
       const devices: EffectiveDevice[] = room.devices.map((device) => {
         const effectiveStatus = resolveEffectiveStatus(device, mainBreakerOn);
-        const effectiveWatts = isPowered(effectiveStatus) ? device.powerDrawWatts : 0;
+        const drawsPower =
+          device.type === 'multi_switch'
+            ? isPowered(effectiveStatus) && anySwitchOn(device)
+            : isPowered(effectiveStatus);
+        const effectiveWatts = drawsPower ? device.powerDrawWatts : 0;
 
         return {
           ...device,
@@ -399,6 +508,7 @@ export function useSimulatorState() {
     roomViewModels,
     toggleDevice,
     cycleDeviceStatus,
+    toggleSwitchChannel,
     totalWattage,
     activeDeviceCount,
     totalDevices,

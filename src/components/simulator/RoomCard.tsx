@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import CameraMonitor from './CameraMonitor';
 import DeviceControlCard from './DeviceControlCard';
 import MultiSwitchPanel from './MultiSwitchPanel';
 import styles from './HomeSimulator.module.css';
@@ -8,7 +10,9 @@ import { EffectiveDevice, RoomViewModel } from './useSimulatorState';
 
 export interface RoomCardProps {
   room: RoomViewModel;
+  mainBreakerOn: boolean;
   onToggleDevice: (deviceId: string) => void;
+  onToggleSwitch?: (deviceId: string, switchId: string) => void;
   onCycleStatus?: (deviceId: string) => void;
 }
 
@@ -33,16 +37,21 @@ function hasAcOn(devices: EffectiveDevice[]): boolean {
 /** Room overlay: devices live inside this room's bounds */
 export default function RoomCard({
   room,
+  mainBreakerOn,
   onToggleDevice,
+  onToggleSwitch,
   onCycleStatus,
 }: RoomCardProps) {
   const bounds = ROOM_BOUNDS.find((b) => b.roomId === room.id);
+  const [monitorDeviceId, setMonitorDeviceId] = useState<string | null>(null);
+
   if (!bounds) return null;
 
   const deviceById = Object.fromEntries(room.devices.map((d) => [d.id, d]));
   const ceilingOn = hasCeilingOn(room.devices);
   const lampOn = hasLampOn(room.devices);
   const acOn = hasAcOn(room.devices);
+  const monitorDevice = monitorDeviceId ? deviceById[monitorDeviceId] : null;
 
   return (
     <RoomPanel
@@ -81,8 +90,15 @@ export default function RoomCard({
             status={device.status}
             effectiveStatus={device.effectiveStatus}
             schedule={device.schedule}
+            streamUri={device.streamUri}
+            snapshotUri={device.snapshotUri}
             onToggle={onToggleDevice}
             onCycleStatus={onCycleStatus}
+            onOpenMonitor={
+              device.type === 'security_camera'
+                ? () => setMonitorDeviceId(device.id)
+                : undefined
+            }
             style={{
               left: `${placement.x}%`,
               top: `${placement.y}%`,
@@ -92,16 +108,15 @@ export default function RoomCard({
       })}
 
       {(bounds.panels ?? []).map((panel) => {
-        const switches = panel.switchIds
-          .map((id) => deviceById[id])
-          .filter((d): d is EffectiveDevice => Boolean(d));
+        const msu = deviceById[panel.deviceId];
+        if (!msu || msu.type !== 'multi_switch' || !onToggleSwitch) return null;
 
         return (
           <MultiSwitchPanel
-            key={panel.panelId}
-            label={panel.label}
-            switches={switches}
-            onToggle={onToggleDevice}
+            key={panel.deviceId}
+            device={msu}
+            mainBreakerOn={mainBreakerOn}
+            onToggleSwitch={onToggleSwitch}
             onCycleStatus={onCycleStatus}
             style={{
               left: `${panel.x}%`,
@@ -110,6 +125,16 @@ export default function RoomCard({
           />
         );
       })}
+
+      {monitorDevice && monitorDevice.type === 'security_camera' && (
+        <CameraMonitor
+          name={monitorDevice.name}
+          active={isPowered(monitorDevice.effectiveStatus)}
+          streamUri={monitorDevice.streamUri}
+          snapshotUri={monitorDevice.snapshotUri}
+          onClose={() => setMonitorDeviceId(null)}
+        />
+      )}
     </RoomPanel>
   );
 }

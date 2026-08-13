@@ -9,14 +9,10 @@ export interface DevicePlacement {
   y: number;
 }
 
-/**
- * One multi-switch panel in a room.
- * switchIds must be real devices in that room — panel buttons toggle those devices.
- */
+/** Placement for a multi_switch device entity (nested channels in one Firebase device). */
 export interface SwitchPanelPlacement {
-  panelId: string;
-  label: string;
-  switchIds: string[];
+  /** Device id of the multi_switch unit (e.g. r5-multiswitch) */
+  deviceId: string;
   x: number;
   y: number;
 }
@@ -109,16 +105,8 @@ export const ROOM_BOUNDS: RoomBounds[] = [
       { deviceId: 'r5-stove', x: 82, y: 58 },
       { deviceId: 'r5-outlet', x: 18, y: 58 },
     ],
-    // Single multi-switch unit for this room — each button = one kitchen device
-    panels: [
-      {
-        panelId: 'kitchen-msu',
-        label: 'Kitchen Panel',
-        switchIds: ['r5-ceiling', 'r5-stove', 'r5-outlet'],
-        x: 50,
-        y: 78,
-      },
-    ],
+    // Single multi_switch entity: nested Kitchen Light / Stove / Outlet channels
+    panels: [{ deviceId: 'r5-multiswitch', x: 50, y: 78 }],
   },
   {
     // Outdoor garden CCTV — toggle beside pole camera (lawn)

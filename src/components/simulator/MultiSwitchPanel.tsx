@@ -1,27 +1,14 @@
 import type { CSSProperties, MouseEvent } from 'react';
-import { DeviceStatus, isPowered } from '../../types/simulator';
+import { DeviceStatus } from '../../types/simulator';
 import styles from './HomeSimulator.module.css';
 import type { EffectiveDevice } from './useSimulatorState';
 
 export interface MultiSwitchPanelProps {
-  label: string;
-  switches: EffectiveDevice[];
-  onToggle: (deviceId: string) => void;
-  /** Alt+click cycles ON → OFF → ERROR → DISCONNECTED */
+  device: EffectiveDevice;
+  mainBreakerOn: boolean;
+  onToggleSwitch: (deviceId: string, switchId: string) => void;
   onCycleStatus?: (deviceId: string) => void;
   style?: CSSProperties;
-}
-
-/** Short row label for room devices on the panel */
-function shortLabel(name: string, deviceId: string): string {
-  if (deviceId.includes('ceiling')) return 'Light';
-  if (deviceId.includes('stove')) return 'Stove';
-  if (deviceId.includes('outlet')) return 'Outlet';
-  if (deviceId.includes('lamp')) return 'Lamp';
-  if (deviceId.includes('tv')) return 'TV';
-  if (deviceId.includes('iron')) return 'Iron';
-  const parts = name.split('—');
-  return (parts[parts.length - 1] ?? name).trim();
 }
 
 function statusClass(status: DeviceStatus): string {
@@ -32,29 +19,38 @@ function statusClass(status: DeviceStatus): string {
 }
 
 /**
- * Multi-switch unit for one room.
- * Each button toggles a real room device (same Firebase path as the device icon).
+ * Single multi_switch Firebase entity with nested independent channels.
+ * Path: .../devices/{msuId}/switches/{swId}/status
  */
 export default function MultiSwitchPanel({
-  label,
-  switches,
-  onToggle,
+  device,
+  mainBreakerOn,
+  onToggleSwitch,
   onCycleStatus,
   style,
 }: MultiSwitchPanelProps) {
-  if (switches.length === 0) return null;
+  const channels = device.switches ?? [];
+  if (channels.length === 0) return null;
 
-  const anyActive = switches.some((s) => isPowered(s.effectiveStatus));
+  const unitFaulted =
+    device.status === 'ERROR' || device.status === 'DISCONNECTED';
+  const canOperate = mainBreakerOn && !unitFaulted;
+  const anyActive = canOperate && channels.some((sw) => sw.status === 'ON');
 
-  const handleClick = (event: MouseEvent, deviceId: string, status: DeviceStatus) => {
+  const handleClick = (
+    event: MouseEvent,
+    switchId: string,
+    status: DeviceStatus,
+  ) => {
     event.preventDefault();
     event.stopPropagation();
     if (event.altKey && onCycleStatus) {
-      onCycleStatus(deviceId);
+      onCycleStatus(device.id);
       return;
     }
+    if (!canOperate) return;
     if (status === 'ON' || status === 'OFF') {
-      onToggle(deviceId);
+      onToggleSwitch(device.id, switchId);
     }
   };
 
@@ -63,21 +59,25 @@ export default function MultiSwitchPanel({
       className={`${styles.msuPanel} ${anyActive ? styles.msuPanelOn : ''}`}
       style={style}
       role="group"
-      aria-label={label}
+      aria-label={device.name}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <div className={styles.msuTitle}>{label}</div>
+      <div className={styles.msuTitle}>Kitchen Multi-Switch</div>
+      <div className={styles.msuUnitStatus}>
+        Unit: <strong>{device.status}</strong>
+      </div>
       <div className={styles.msuRows}>
-        {switches.map((sw) => {
-          const toggleable = sw.status === 'ON' || sw.status === 'OFF';
-          const powered = isPowered(sw.effectiveStatus);
+        {channels.map((sw) => {
+          const toggleable =
+            canOperate && (sw.status === 'ON' || sw.status === 'OFF');
+          const lit = canOperate && sw.status === 'ON';
 
           return (
             <div key={sw.id} className={styles.msuRow}>
               <span
-                className={`${styles.msuChannel} ${powered ? styles.msuChannelOn : ''}`}
+                className={`${styles.msuChannel} ${lit ? styles.msuChannelOn : ''}`}
               >
-                {shortLabel(sw.name, sw.id)}
+                {sw.name}
               </span>
               <button
                 type="button"
@@ -85,8 +85,8 @@ export default function MultiSwitchPanel({
                 disabled={!toggleable && !onCycleStatus}
                 onClick={(e) => handleClick(e, sw.id, sw.status)}
                 aria-pressed={sw.status === 'ON'}
-                aria-label={`${sw.name} ${sw.status}`}
-                title="Controls this room device · Alt+click: cycle ERROR/DISCONNECTED"
+                aria-label={`${device.name} ${sw.name} ${sw.status}`}
+                title="Independent channel on multi-switch unit"
               >
                 {sw.status}
               </button>

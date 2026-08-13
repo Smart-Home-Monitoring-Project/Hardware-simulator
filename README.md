@@ -89,10 +89,22 @@ Additional heterogeneous devices (simulator + Firebase merge):
 
 | Device | Path |
 |--------|------|
-| Kitchen outlet | `.../floor1/rooms/room-5/devices/r5-outlet` (`electrical_outlet`) |
-| Kitchen multi-switch panel | UI panel in Kitchen — buttons control `r5-ceiling`, `r5-stove`, `r5-outlet` |
+| Kitchen outlet | `.../floor1/rooms/room-5/devices/r5-outlet` |
+| Kitchen multi-switch unit | `.../floor1/rooms/room-5/devices/r5-multiswitch` |
 
-The multi-switch panel is **one unit in the Kitchen**. Each button toggles the matching room device in Firebase (same paths as the device icons).
+**Multi-switch entity** (one Firebase device, nested independent channels):
+
+```
+r5-multiswitch/
+  type: multi_switch
+  name: Kitchen Multi-Switch
+  switches/
+    switch-1: { name: "Kitchen Light", status }  → also drives r5-ceiling
+    switch-2: { name: "Stove", status }           → also drives r5-stove
+    switch-3: { name: "Outlet", status }          → also drives r5-outlet
+```
+
+**Garden CCTV monitoring:** device includes `streamUri` + `snapshotUri`. Click **VIEW** on the garden camera for the mock snapshot / URI monitor.
 
 **Light schedule (Master Bedroom ceiling `r1-ceiling`):**
 

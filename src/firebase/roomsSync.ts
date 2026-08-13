@@ -4,6 +4,8 @@ import {
   DeviceType,
   INITIAL_ROOMS,
   RoomData,
+  SwitchChannel,
+  anySwitchOn,
 } from '../types/simulator';
 
 /** Official house tree used by Android + backend — never use top-level `rooms`. */
@@ -122,7 +124,85 @@ function normalizeDevice(raw: unknown, fallbackId: string): DeviceState | null {
     }
   }
 
+  if (typeof d.streamUri === 'string') device.streamUri = d.streamUri;
+  if (typeof d.snapshotUri === 'string') device.snapshotUri = d.snapshotUri;
+
+  const switchesRaw = d.switches;
+  if (switchesRaw && typeof switchesRaw === 'object') {
+    const channels: SwitchChannel[] = [];
+    for (const [swKey, swValue] of Object.entries(
+      switchesRaw as Record<string, unknown>,
+    )) {
+      if (!swValue || typeof swValue !== 'object') continue;
+      const sw = swValue as Record<string, unknown>;
+      const swStatus = isDeviceStatus(sw.status) ? sw.status : 'OFF';
+      const channel: SwitchChannel = {
+        id: typeof sw.id === 'string' ? sw.id : swKey,
+        name: typeof sw.name === 'string' ? sw.name : swKey,
+        status: swStatus,
+      };
+      if (typeof sw.controlsDeviceId === 'string') {
+        channel.controlsDeviceId = sw.controlsDeviceId;
+      }
+      channels.push(channel);
+    }
+    channels.sort((a, b) => a.id.localeCompare(b.id));
+    if (channels.length > 0) {
+      device.switches = channels;
+      // Parent status mirrors “any channel ON” for wattage / UI (unless faulted)
+      if (device.status !== 'ERROR' && device.status !== 'DISCONNECTED') {
+        device.status = anySwitchOn(device) ? 'ON' : 'OFF';
+      }
+    }
+  }
+
   return device;
+}
+
+/** Firebase map form for nested switches */
+export function switchesToFirebaseMap(
+  switches: SwitchChannel[],
+): Record<string, Record<string, unknown>> {
+  const map: Record<string, Record<string, unknown>> = {};
+  for (const sw of switches) {
+    map[sw.id] = {
+      id: sw.id,
+      name: sw.name,
+      status: sw.status,
+      ...(sw.controlsDeviceId ? { controlsDeviceId: sw.controlsDeviceId } : {}),
+    };
+  }
+  return map;
+}
+
+export function deviceToFirebasePayload(device: DeviceState): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    id: device.id,
+    name: device.name,
+    type: device.type,
+    powerDrawWatts: device.powerDrawWatts,
+    status: device.status,
+  };
+  if (device.turnedOnAt !== undefined) payload.turnedOnAt = device.turnedOnAt;
+  if (device.turnedOffAt !== undefined) payload.turnedOffAt = device.turnedOffAt;
+  if (device.maxOnDuration !== undefined) payload.maxOnDuration = device.maxOnDuration;
+  if (device.safetyCutoff !== undefined) payload.safetyCutoff = device.safetyCutoff;
+  if (device.schedule) payload.schedule = { ...device.schedule };
+  if (device.streamUri) payload.streamUri = device.streamUri;
+  if (device.snapshotUri) payload.snapshotUri = device.snapshotUri;
+  if (device.switches && device.switches.length > 0) {
+    payload.switches = switchesToFirebaseMap(device.switches);
+  }
+  return payload;
+}
+
+export function switchPath(
+  floorId: string,
+  roomId: string,
+  deviceId: string,
+  switchId: string,
+): string {
+  return `${devicePath(floorId, roomId, deviceId)}/switches/${switchId}`;
 }
 
 /**
@@ -220,9 +300,9 @@ export function buildMissingHouseDevicePatches(
     const existing = existingRooms.find((room) => room.id === seedRoom.id);
 
     if (!existing) {
-      const devices: Record<string, DeviceState> = {};
+      const devices: Record<string, unknown> = {};
       for (const device of seedRoom.devices) {
-        devices[device.id] = { ...device };
+        devices[device.id] = deviceToFirebasePayload(device);
       }
       patches[roomPath] = {
         id: seedRoom.id,
@@ -233,17 +313,39 @@ export function buildMissingHouseDevicePatches(
     }
 
     for (const device of seedRoom.devices) {
-      if (!existing.devices.some((d) => d.id === device.id)) {
-        patches[devicePath(floorId, seedRoom.id, device.id)] = { ...device };
+      const live = existing.devices.find((d) => d.id === device.id);
+      if (!live) {
+        patches[devicePath(floorId, seedRoom.id, device.id)] =
+          deviceToFirebasePayload(device);
         continue;
       }
 
-      // Preserve adding schedule metadata if seed has it and Firebase lacks it
-      const live = existing.devices.find((d) => d.id === device.id);
-      if (device.schedule && live && !live.schedule) {
+      if (device.schedule && !live.schedule) {
         patches[`${devicePath(floorId, seedRoom.id, device.id)}/schedule`] = {
           ...device.schedule,
         };
+      }
+      if (device.streamUri && !live.streamUri) {
+        patches[`${devicePath(floorId, seedRoom.id, device.id)}/streamUri`] =
+          device.streamUri;
+      }
+      if (device.snapshotUri && !live.snapshotUri) {
+        patches[`${devicePath(floorId, seedRoom.id, device.id)}/snapshotUri`] =
+          device.snapshotUri;
+      }
+      if (device.switches && device.switches.length > 0) {
+        if (!live.switches || live.switches.length === 0) {
+          patches[`${devicePath(floorId, seedRoom.id, device.id)}/switches`] =
+            switchesToFirebaseMap(device.switches);
+        } else {
+          for (const sw of device.switches) {
+            if (!live.switches.some((l) => l.id === sw.id)) {
+              patches[
+                `${devicePath(floorId, seedRoom.id, device.id)}/switches/${sw.id}`
+              ] = { ...sw };
+            }
+          }
+        }
       }
     }
   }
